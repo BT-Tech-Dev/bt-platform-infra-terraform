@@ -1,0 +1,74 @@
+# =============================================================================
+# outputs.tf — Valori di output esposti dopo terraform apply
+#
+# Questi valori vengono stampati a terminale e sono usabili da altri moduli
+# o da script di configurazione (es. init_db.sh).
+# =============================================================================
+
+# ─── Cloud SQL ───────────────────────────────────────────────────────────────
+
+output "db_connection_name" {
+  description = "Connection name Cloud SQL nel formato project:region:instance. Usato dai Cloud Run per connettersi via Cloud SQL Connector."
+  value       = module.cloud_sql.connection_name
+}
+
+output "db_instance_ip" {
+  description = "IP pubblico dell'istanza Cloud SQL (per debug/admin locale via proxy)"
+  value       = module.cloud_sql.instance_ip
+  sensitive   = true  # Nascosto nel log CI/CD per sicurezza
+}
+
+# ─── Storage ─────────────────────────────────────────────────────────────────
+
+output "bucket_staging_name" {
+  description = "Nome bucket GCS staging (dove il plugin Revit carica i JSON)"
+  value       = module.storage.bucket_staging_name
+}
+
+output "bucket_ingest_name" {
+  description = "Nome bucket GCS ingest (pipeline di lavorazione)"
+  value       = module.storage.bucket_ingest_name
+}
+
+output "bucket_handoff_name" {
+  description = "Nome bucket GCS handoff (passaggio tra servizi della pipeline)"
+  value       = module.storage.bucket_handoff_name
+}
+
+# ─── IAM — Service Accounts ──────────────────────────────────────────────────
+
+output "sa_parser_email" {
+  description = "Email service account del BIM parser (usato dal Cloud Run bim-parser-v1)"
+  value       = module.iam.sa_parser_email
+}
+
+output "sa_eventarc_email" {
+  description = "Email service account EventArc (usato per invocare Cloud Run dai trigger)"
+  value       = module.iam.sa_eventarc_email
+}
+
+output "sa_cloudbuild_email" {
+  description = "Email service account Cloud Build (CI/CD: build Docker + deploy Cloud Run)"
+  value       = module.iam.sa_cloudbuild_email
+}
+
+# ─── Artifact Registry ───────────────────────────────────────────────────────
+
+output "artifact_registry_url" {
+  description = "URL base Artifact Registry per pushare le immagini Docker: REGION-docker.pkg.dev/PROJECT/REPO"
+  value       = module.artifact_registry.registry_url
+}
+
+# ─── Cloud Run ───────────────────────────────────────────────────────────────
+
+output "bim_parser_url" {
+  description = "URL del Cloud Run bim-parser-v1 (placeholder, sarà il primo servizio della pipeline)"
+  value       = module.cloud_run.bim_parser_url
+}
+
+# ─── Pub/Sub ─────────────────────────────────────────────────────────────────
+
+output "pubsub_topics" {
+  description = "Mappa nome → ID di tutti i topic Pub/Sub creati"
+  value       = module.pubsub.topic_ids
+}

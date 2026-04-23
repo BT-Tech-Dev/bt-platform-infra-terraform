@@ -1,0 +1,30 @@
+# Terraform state locale (mai committare — contiene IPs, password, ecc.)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# File override locali (usati per debug, non per team)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Crash log Terraform
+crash.log
+crash.*.log
+
+# Variabili con segreti (se usi file separati)
+*.tfvars.local
+secrets.tfvars
+
+# OS e editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Script output
+*.log

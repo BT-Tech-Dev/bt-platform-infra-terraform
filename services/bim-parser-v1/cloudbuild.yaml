@@ -1,0 +1,95 @@
+# =============================================================================
+# cloudbuild.yaml — CI/CD per bim-parser-v1
+#
+# Questo file viene usato dal trigger Cloud Build "cb-bim-parser-v1" (creato
+# nel modulo Terraform modules/cloud_build/).
+#
+# Viene eseguito automaticamente quando viene fatto un push al branch main
+# con modifiche nella cartella services/bim-parser-v1/.
+#
+# Passi:
+#   1. Build dell'immagine Docker con 2 tag: $COMMIT_SHA e :latest
+#   2. Push di entrambi i tag su Artifact Registry
+#   3. Deploy automatico sul Cloud Run bim-parser-v1
+#
+# Variabili sostituzione disponibili da Cloud Build:
+#   $PROJECT_ID  → ID progetto GCP (es. "bt-platform-prod")
+#   $COMMIT_SHA  → SHA del commit che ha triggerato il build
+#   $BRANCH_NAME → nome del branch (es. "main")
+#   $REPO_NAME   → nome del repository GitHub
+#
+# Registry target:
+#   europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/bim-parser-v1
+# =============================================================================
+
+steps:
+  # ─── Step 1: Build immagine Docker ─────────────────────────────────────────
+  # Costruisce l'immagine dal Dockerfile in services/bim-parser-v1/.
+  # Tagger con COMMIT_SHA per tracciabilità + :latest per deploy.
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build"
+    args:
+      - "build"
+      - "--tag"
+      - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:$COMMIT_SHA"
+      - "--tag"
+      - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:latest"
+      # Il context Docker è la cartella del servizio (passata da includedFiles nel trigger)
+      - "services/bim-parser-v1"
+    # Mostra i log di build in tempo reale (utile per debug errori pip install)
+    waitFor: ["-"]  # Può iniziare subito (non aspetta altri step)
+
+  # ─── Step 2: Push immagine con tag COMMIT_SHA ────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-sha"
+    args:
+      - "push"
+      - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:$COMMIT_SHA"
+    waitFor: ["build"]
+
+  # ─── Step 3: Push immagine con tag latest ───────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-latest"
+    args:
+      - "push"
+      - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:latest"
+    waitFor: ["build"]
+
+  # ─── Step 4: Deploy su Cloud Run ────────────────────────────────────────
+  # Aggiorna bim-parser-v1 con la nuova immagine.
+  # Usa il tag COMMIT_SHA (non :latest) per il deploy: permette rollback esatto.
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "bim-parser-v1"
+      - "--image"
+      - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:$COMMIT_SHA"
+      - "--region"
+      - "europe-west8"
+      - "--project"
+      - "$PROJECT_ID"
+      # --quiet: non chiede conferme interattive
+      - "--quiet"
+    waitFor: ["push-sha", "push-latest"]
+
+# ─── Immagini da conservare su Artifact Registry ─────────────────────────────
+# Cloud Build registra queste immagini nel log di build per tracciabilità.
+images:
+  - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:$COMMIT_SHA"
+  - "europe-west8-docker.pkg.dev/$PROJECT_ID/bt-platform/bim-parser-v1:latest"
+
+# ─── Opzioni build ────────────────────────────────────────────────────────────
+options:
+  # machineType: E2_MEDIUM ha 2 vCPU e 4GB RAM — sufficiente per build Python.
+  # Default (E2_SMALL, 1 vCPU) potrebbe essere lento per pip install.
+  machineType: "E2_MEDIUM"
+  # Logging: CLOUD_LOGGING_ONLY manda i log solo a Cloud Logging (non GCS).
+  # Riduce i costi rispetto a LEGACY (che scrive anche su GCS).
+  logging: CLOUD_LOGGING_ONLY
+
+# ─── Timeout ─────────────────────────────────────────────────────────────────
+# 15 minuti: dovrebbe essere abbondante per build Python + push + deploy.
+timeout: "900s"
