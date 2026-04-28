@@ -52,7 +52,9 @@ CREATE TABLE IF NOT EXISTS bim.bim_model (
     -- Stato importazione
     import_status   VARCHAR(20)  NOT NULL DEFAULT 'pending'
                     CHECK (import_status IN ('pending', 'processing', 'completed', 'failed')),
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    -- Impedisce doppia importazione dello stesso file GCS per lo stesso tenant
+    CONSTRAINT uq_bim_model_tenant_path UNIQUE (tenant_id, source_gcs_path)
 );
 COMMENT ON TABLE bim.bim_model IS 'Modelli BIM importati da Revit via plugin Orienta Trium. Un record per ogni export JSON.';
 COMMENT ON COLUMN bim.bim_model.total_elements_raw IS 'Totale elementi nel JSON prima del filtro famiglie (es. 700+)';
@@ -94,7 +96,9 @@ CREATE TABLE IF NOT EXISTS bim.bim_quantity (
     quantity_type VARCHAR(100)  NOT NULL,
     value         NUMERIC(15,4) NOT NULL,
     unit_of_measure VARCHAR(20) NOT NULL,  -- Es. "m³", "m²", "m", "kg"
-    created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    -- Un elemento non può avere due righe con lo stesso tipo di quantità
+    CONSTRAINT uq_bim_quantity_element_type UNIQUE (element_id, quantity_type)
 );
 COMMENT ON TABLE bim.bim_quantity IS 'Quantità geometriche degli elementi BIM (volume, area, lunghezza, ecc.). CutLength ha priorità su Length.';
 
@@ -199,3 +203,15 @@ CREATE INDEX IF NOT EXISTS idx_bim_elem_act_elem    ON bim.element_activity(elem
 CREATE INDEX IF NOT EXISTS idx_bim_elem_act_act     ON bim.element_activity(activity_id);
 CREATE INDEX IF NOT EXISTS idx_bim_meas_rule_act    ON bim.measurement_rule(activity_id);
 CREATE INDEX IF NOT EXISTS idx_bim_time_prof_act    ON bim.time_profile(activity_id);
+
+-- ─── Constraint UNIQUE aggiunti post-deploy ───────────────────────────────────
+-- Idempotenti: falliscono se eseguiti su un DB che ha già il constraint (es. prod).
+-- Su un DB fresco i constraint sopra (inline in CREATE TABLE) li creano già.
+-- Questi ALTER TABLE servono per aggiornare DB esistenti che mancavano del constraint.
+ALTER TABLE bim.bim_model
+    ADD CONSTRAINT uq_bim_model_tenant_path
+    UNIQUE (tenant_id, source_gcs_path);
+
+ALTER TABLE bim.bim_quantity
+    ADD CONSTRAINT uq_bim_quantity_element_type
+    UNIQUE (element_id, quantity_type);
