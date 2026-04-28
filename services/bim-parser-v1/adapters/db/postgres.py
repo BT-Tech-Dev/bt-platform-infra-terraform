@@ -1,16 +1,11 @@
 """
 adapters/db/postgres.py — Adapter PostgreSQL async (SQLAlchemy + asyncpg).
 
-Connessione via Cloud SQL Python Connector (AsyncConnector):
-  - NON apre connessione nel __init__
-  - connect() è async e viene chiamato dal lifespan di FastAPI
-  - usa async_creator per creare il pool SQLAlchemy senza IP diretto
+Connessione via Unix socket Cloud SQL Proxy (già configurato da Cloud Run):
+  postgresql+asyncpg://user:pass@/dbname?host=/cloudsql/INSTANCE_CONNECTION_NAME
 
-Pattern:
-    adapter = PostgresAdapter(settings)
-    await adapter.connect()          # apre il pool
-    ...
-    await adapter.close()            # chiude pool e connector
+Non serve cloud-sql-python-connector: Cloud Run monta automaticamente
+il socket Unix /cloudsql/<instance> tramite la configurazione Cloud SQL.
 """
 
 from __future__ import annotations
@@ -19,7 +14,6 @@ import json
 import logging
 from typing import Optional
 
-from google.cloud.sql.connector import AsyncConnector
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -34,25 +28,12 @@ logger = logging.getLogger(__name__)
 class PostgresAdapter(DbPort):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._connector: Optional[AsyncConnector] = None
         self._engine: Optional[AsyncEngine] = None
         self._session_factory = None
 
     async def connect(self) -> None:
-        self._connector = AsyncConnector()
-
-        async def _getconn():
-            return await self._connector.connect(
-                self._settings.instance_connection_name,
-                "asyncpg",
-                user=self._settings.db_user,
-                password=self._settings.db_password,
-                db=self._settings.db_name,
-            )
-
         self._engine = create_async_engine(
             self._settings.database_url,
-            async_creator=_getconn,
             pool_size=2,
             max_overflow=0,
             echo=False,
@@ -61,7 +42,7 @@ class PostgresAdapter(DbPort):
             self._engine, class_=AsyncSession, expire_on_commit=False
         )
         logger.info(
-            "PostgresAdapter connesso: instance=%s schema=%s",
+            "PostgresAdapter connesso via Unix socket: instance=%s schema=%s",
             self._settings.instance_connection_name,
             self._settings.db_schema,
         )
@@ -69,8 +50,6 @@ class PostgresAdapter(DbPort):
     async def close(self) -> None:
         if self._engine:
             await self._engine.dispose()
-        if self._connector:
-            await self._connector.close_async()
 
     async def upsert_bim_model(self, model: BimModel) -> str:
         sql = text("""
@@ -211,7 +190,6 @@ class PostgresAdapter(DbPort):
 
 
 async def get_db_adapter(settings: Settings) -> PostgresAdapter:
-    """Factory async: crea e connette il PostgresAdapter."""
     adapter = PostgresAdapter(settings)
     await adapter.connect()
     return adapter

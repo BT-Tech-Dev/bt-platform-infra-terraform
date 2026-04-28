@@ -27,9 +27,12 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """URL SQLAlchemy per il dialetto asyncpg.
-        Il host è gestito dal Cloud SQL Connector tramite async_creator,
-        non contiene mai un indirizzo IP diretto."""
-        return f"postgresql+asyncpg://{self.db_user}@/{self.db_name}"
+        """URL SQLAlchemy asyncpg via Unix socket Cloud SQL Proxy.
+        Cloud Run monta automaticamente /cloudsql/<instance>."""
+        return (
+            f"postgresql+asyncpg://{self.db_user}:{self.db_password}"
+            f"@/{self.db_name}"
+            f"?host=/cloudsql/{self.instance_connection_name}"
+        )
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
