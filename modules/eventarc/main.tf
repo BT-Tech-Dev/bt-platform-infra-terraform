@@ -1,35 +1,75 @@
 # =============================================================================
 # modules/eventarc/main.tf — Trigger EventArc: Pub/Sub → Cloud Run
 #
-# Percorso evento:
-#   1. File caricato in GCS bucket staging (prefisso uploads/)
-#   2. GCS pubblica messaggio su topic Pub/Sub bt-platform-gcs-staging-uploads-prod
-#      (la notifica GCS e il binding IAM sono gestiti in modules/storage/main.tf)
-#   3. EventArc legge il topic e invoca Cloud Run bim-parser-v1 via POST /ingest
+# Flusso dopo l'introduzione di bucket-watcher:
+#
+#   1. File caricato in GCS staging (uploads/{project_code}/{doc_type}/{file})
+#   2. GCS notifica → topic bt-platform-gcs-staging-uploads-prod
+#   3. EventArc (trg-bt-staging-to-parser-prod) → bucket-watcher POST /route
+#   4. bucket-watcher risolve tenant_id e pubblica su topic per doc_type:
+#        bim        → bt-platform-gcs-bim-prod
+#        production → bt-platform-gcs-production-prod
+#        boq        → bt-platform-gcs-boq-prod
+#        gantt      → bt-platform-gcs-gantt-prod
+#   5. EventArc (trg-bt-gcs-bim-to-parser-prod) → bim-parser-v1 POST /ingest
 # =============================================================================
 
-# ─── EventArc Trigger ────────────────────────────────────────────────────────
-# Ascolta il topic staging_uploads e invoca bim-parser-v1 via POST /ingest.
-# Il SA eventarc ha il ruolo run.invoker per autenticarsi con Cloud Run.
-resource "google_eventarc_trigger" "staging_to_bim_parser" {
+# ─── Trigger 1: GCS staging → bucket-watcher ─────────────────────────────────
+# MODIFICATO (2026-05-06): destinazione cambiata da bim-parser-v1 a bucket-watcher.
+# bucket-watcher smista il file al parser corretto in base al doc_type nel path.
+resource "google_eventarc_trigger" "staging_to_bucket_watcher" {
   name     = "trg-bt-staging-to-parser-${var.environment}"
   location = var.region
   project  = var.project_id
 
-  # Tipo evento: messaggio Pub/Sub pubblicato
   matching_criteria {
     attribute = "type"
     value     = "google.cloud.pubsub.topic.v1.messagePublished"
   }
 
-  # Sorgente: topic staging_uploads
   transport {
     pubsub {
       topic = var.topic_staging_uploads_id
     }
   }
 
-  # Destinazione: Cloud Run bim-parser-v1 → endpoint POST /ingest
+  destination {
+    cloud_run_service {
+      service = var.cloud_run_bucket_watcher_name
+      region  = var.region
+      path    = "/route"
+    }
+  }
+
+  service_account = var.sa_eventarc_email
+
+  labels = {
+    environment = var.environment
+    pipeline    = "bim-ingest"
+    step        = "1-routing"
+  }
+}
+
+# ─── Trigger 2: topic BIM → bim-parser-v1 ────────────────────────────────────
+# Nuovo trigger: ascolta il topic bt-platform-gcs-bim-{env} pubblicato da
+# bucket-watcher e invoca bim-parser-v1 POST /ingest.
+# Il payload contiene {bucket, file_path, project_code, tenant_id, doc_type}.
+resource "google_eventarc_trigger" "gcs_bim_to_bim_parser" {
+  name     = "trg-bt-gcs-bim-to-parser-${var.environment}"
+  location = var.region
+  project  = var.project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.pubsub.topic.v1.messagePublished"
+  }
+
+  transport {
+    pubsub {
+      topic = var.topic_gcs_bim_id
+    }
+  }
+
   destination {
     cloud_run_service {
       service = var.cloud_run_bim_parser_name
@@ -43,6 +83,6 @@ resource "google_eventarc_trigger" "staging_to_bim_parser" {
   labels = {
     environment = var.environment
     pipeline    = "bim-ingest"
+    step        = "2-parse"
   }
-
 }

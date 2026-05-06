@@ -283,17 +283,17 @@ module "eventarc" {
   region      = var.region
   environment = var.environment
 
-  # Service account che EventArc usa per invocare Cloud Run
   sa_eventarc_email = module.iam.sa_eventarc_email
 
-  # Bucket che generano gli eventi
-  bucket_staging_name = module.storage.bucket_staging_name
-
-  # Topic Pub/Sub a cui i bucket inviano notifiche
+  bucket_staging_name      = module.storage.bucket_staging_name
   topic_staging_uploads_id = module.pubsub.topic_staging_uploads_id
 
-  # Cloud Run che riceve gli eventi
+  # Trigger 1: staging → bucket-watcher (smista per doc_type)
+  cloud_run_bucket_watcher_name = module.cloud_run.bucket_watcher_name
+
+  # Trigger 2: topic BIM → bim-parser-v1
   cloud_run_bim_parser_name = module.cloud_run.bim_parser_name
+  topic_gcs_bim_id          = module.pubsub.topic_gcs_bim_id
 
   depends_on = [
     module.storage,

@@ -191,15 +191,131 @@ resource "google_cloud_run_v2_service" "bim_parser" {
   }
 }
 
-# ─── IAM: solo EventArc può invocare questo Cloud Run ────────────────────────
-# Impedisce chiamate dirette da internet o da altri servizi non autorizzati.
-# Il SA eventarc ha già il ruolo run.invoker sul progetto (da modulo IAM),
-# ma qui lo ripetiamo a livello di servizio specifico per chiarezza.
+# ─── IAM: solo EventArc può invocare bim-parser-v1 ──────────────────────────
 resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker" {
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.bim_parser.name
   role     = "roles/run.invoker"
-  # Solo il SA EventArc può invocare questo servizio
+  member   = "serviceAccount:${var.sa_eventarc_email}"
+}
+
+
+# =============================================================================
+# Cloud Run: bucket-watcher
+#
+# Riceve eventi GCS via EventArc e smista i file sui topic Pub/Sub corretti
+# in base al doc_type nel percorso: uploads/{project_code}/{doc_type}/{file}.
+#
+# Pubblica su:
+#   bt-platform-gcs-bim-prod       → bim-parser-v1
+#   bt-platform-gcs-production-prod → production-parser (futuro)
+#   bt-platform-gcs-boq-prod        → boq-parser (futuro)
+#   bt-platform-gcs-gantt-prod      → gantt-parser (futuro)
+#
+# NOTA IAM: il SA sa_parser_email deve avere roles/pubsub.publisher
+# oltre ai ruoli già assegnati (Cloud SQL client, secret accessor).
+# Se non è già presente, aggiungere nel modulo IAM:
+#   member = "serviceAccount:${sa_parser_email}"
+#   role   = "roles/pubsub.publisher"
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "bucket_watcher" {
+  name     = "bucket-watcher"
+  location = var.region
+  project  = var.project_id
+
+  deletion_protection = false
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  template {
+    service_account = var.sa_parser_email
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.db_connection_name]
+      }
+    }
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "256Mi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "INSTANCE_CONNECTION_NAME"
+        value = var.db_connection_name
+      }
+      env {
+        name  = "DB_USER"
+        value = "bt_app"
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+      env {
+        name  = "LOG_LEVEL"
+        value = "INFO"
+      }
+
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "bt-platform-db-password-${var.environment}"
+            version = "latest"
+          }
+        }
+      }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+
+      ports {
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    timeout = "60s"   # routing veloce: nessuna elaborazione pesante
+
+    max_instance_request_concurrency = 80
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "bucket-watcher"
+    version     = "v1"
+  }
+}
+
+# ─── IAM: solo EventArc può invocare bucket-watcher ─────────────────────────
+resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_bucket_watcher" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.bucket_watcher.name
+  role     = "roles/run.invoker"
   member   = "serviceAccount:${var.sa_eventarc_email}"
 }

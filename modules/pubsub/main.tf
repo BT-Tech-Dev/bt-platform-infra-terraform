@@ -109,6 +109,66 @@ resource "google_pubsub_topic" "nc_events" {
   message_retention_duration = "2592000s"
 }
 
+# =============================================================================
+# Topic GCS per doc_type specifici (pubblicati da bucket-watcher)
+#
+# Il bucket-watcher riceve l'evento GCS raw e lo smista su questi topic
+# in base al doc_type nel percorso: uploads/{project_code}/{doc_type}/...
+# Ogni topic alimenta il parser specializzato per quel tipo di documento.
+# =============================================================================
+
+resource "google_pubsub_topic" "gcs_bim" {
+  name    = "${local.topic_prefix}-gcs-bim-${var.environment}"
+  project = var.project_id
+
+  labels = {
+    environment = var.environment
+    pipeline    = "bim-ingest"
+    doc_type    = "bim"
+  }
+
+  message_retention_duration = "604800s"
+}
+
+resource "google_pubsub_topic" "gcs_production" {
+  name    = "${local.topic_prefix}-gcs-production-${var.environment}"
+  project = var.project_id
+
+  labels = {
+    environment = var.environment
+    pipeline    = "production-ingest"
+    doc_type    = "production"
+  }
+
+  message_retention_duration = "604800s"
+}
+
+resource "google_pubsub_topic" "gcs_boq" {
+  name    = "${local.topic_prefix}-gcs-boq-${var.environment}"
+  project = var.project_id
+
+  labels = {
+    environment = var.environment
+    pipeline    = "boq-ingest"
+    doc_type    = "boq"
+  }
+
+  message_retention_duration = "604800s"
+}
+
+resource "google_pubsub_topic" "gcs_gantt" {
+  name    = "${local.topic_prefix}-gcs-gantt-${var.environment}"
+  project = var.project_id
+
+  labels = {
+    environment = var.environment
+    pipeline    = "gantt-ingest"
+    doc_type    = "gantt"
+  }
+
+  message_retention_duration = "604800s"
+}
+
 # ─── Dead Letter Topic ────────────────────────────────────────────────────────
 # Topic speciale per i messaggi che falliscono dopo N tentativi.
 # Importante per il debug: invece di perdere i messaggi, finiscono qui.

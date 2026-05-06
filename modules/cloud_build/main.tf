@@ -16,6 +16,44 @@
 #         Non può essere fatta via Terraform o gcloud senza interazione.
 # =============================================================================
 
+# =============================================================================
+# Trigger CI/CD: push main → build + deploy bucket-watcher
+# Si attiva solo se ci sono modifiche in services/bucket-watcher/
+# =============================================================================
+
+resource "google_cloudbuild_trigger" "bucket_watcher" {
+  name     = "cb-bucket-watcher-${var.environment}"
+  project  = var.project_id
+  location = var.region
+
+  description = "Build e deploy automatico di bucket-watcher su push a main (services/bucket-watcher/)"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repo_name
+
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "services/bucket-watcher/cloudbuild.yaml"
+
+  included_files = ["services/bucket-watcher/**"]
+
+  service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
+
+  tags = [
+    "bucket-watcher",
+    "cloud-run",
+    var.environment,
+  ]
+}
+
+# =============================================================================
+# Trigger CI/CD: push main → build + deploy bim-parser-v1
+# =============================================================================
+
 resource "google_cloudbuild_trigger" "bim_parser" {
   name     = "cb-bim-parser-v1-${var.environment}"
   project  = var.project_id
