@@ -261,9 +261,17 @@ ALTER TABLE bim.bim_quantity
 ALTER TABLE bim.bim_quantity
     DROP CONSTRAINT IF EXISTS uq_bim_quantity_element_type;
 
-ALTER TABLE bim.bim_quantity
-    ADD CONSTRAINT uq_bim_quantity_element_type_phase
-    UNIQUE (element_id, quantity_type, phase);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'uq_bim_quantity_element_type_phase'
+    ) THEN
+        ALTER TABLE bim.bim_quantity
+            ADD CONSTRAINT uq_bim_quantity_element_type_phase
+            UNIQUE (element_id, quantity_type, phase);
+    END IF;
+END$$;
 
 COMMENT ON COLUMN bim.bim_quantity.phase
     IS 'Fase costruttiva del dato: DE=Design, AB=As-Built, ecc. Sempre DE per quantità geometriche BIM.';
