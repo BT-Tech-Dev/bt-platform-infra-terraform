@@ -208,13 +208,29 @@ CREATE INDEX IF NOT EXISTS idx_bim_time_prof_act    ON bim.time_profile(activity
 -- Idempotenti: falliscono se eseguiti su un DB che ha già il constraint (es. prod).
 -- Su un DB fresco i constraint sopra (inline in CREATE TABLE) li creano già.
 -- Questi ALTER TABLE servono per aggiornare DB esistenti che mancavano del constraint.
-ALTER TABLE bim.bim_model
-    ADD CONSTRAINT IF NOT EXISTS uq_bim_model_tenant_path
-    UNIQUE (tenant_id, source_gcs_path);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'uq_bim_model_tenant_path'
+    ) THEN
+        ALTER TABLE bim.bim_model
+            ADD CONSTRAINT uq_bim_model_tenant_path
+            UNIQUE (tenant_id, source_gcs_path);
+    END IF;
+END$$;
 
-ALTER TABLE bim.bim_quantity
-    ADD CONSTRAINT IF NOT EXISTS uq_bim_quantity_element_type
-    UNIQUE (element_id, quantity_type);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'uq_bim_quantity_element_type'
+    ) THEN
+        ALTER TABLE bim.bim_quantity
+            ADD CONSTRAINT uq_bim_quantity_element_type
+            UNIQUE (element_id, quantity_type);
+    END IF;
+END$$;
 
 -- =============================================================================
 -- Migration 07 — 2026-05-06
