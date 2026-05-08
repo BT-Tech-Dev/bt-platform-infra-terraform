@@ -88,7 +88,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d "${DB_NAME}" -c "
 echo ""
 echo "-> Verifica tenant:"
 psql -h 127.0.0.1 -p 5432 -U postgres -d "${DB_NAME}" -c "
-  SELECT code, name, status FROM tenant.tenant ORDER BY created_at;"
+  SELECT code, name, status FROM tenant.company ORDER BY created_at;"
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 kill "$PROXY_PID" 2>/dev/null || true
