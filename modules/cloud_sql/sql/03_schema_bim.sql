@@ -209,11 +209,11 @@ CREATE INDEX IF NOT EXISTS idx_bim_time_prof_act    ON bim.time_profile(activity
 -- Su un DB fresco i constraint sopra (inline in CREATE TABLE) li creano già.
 -- Questi ALTER TABLE servono per aggiornare DB esistenti che mancavano del constraint.
 ALTER TABLE bim.bim_model
-    ADD CONSTRAINT uq_bim_model_tenant_path
+    ADD CONSTRAINT IF NOT EXISTS uq_bim_model_tenant_path
     UNIQUE (tenant_id, source_gcs_path);
 
 ALTER TABLE bim.bim_quantity
-    ADD CONSTRAINT uq_bim_quantity_element_type
+    ADD CONSTRAINT IF NOT EXISTS uq_bim_quantity_element_type
     UNIQUE (element_id, quantity_type);
 
 -- =============================================================================
