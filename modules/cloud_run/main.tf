@@ -189,6 +189,15 @@ resource "google_cloud_run_v2_service" "bim_parser" {
     service     = "bim-parser"
     version     = "v1"
   }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      scaling
+    ]
+  }
 }
 
 # ─── IAM: solo EventArc può invocare bim-parser-v1 ──────────────────────────
@@ -308,6 +317,15 @@ resource "google_cloud_run_v2_service" "bucket_watcher" {
     environment = var.environment
     service     = "bucket-watcher"
     version     = "v1"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      scaling
+    ]
   }
 }
 

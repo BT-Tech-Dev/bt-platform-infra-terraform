@@ -44,6 +44,13 @@ resource "google_project_iam_member" "parser_secret_accessor" {
   member  = "serviceAccount:${google_service_account.parser.email}"
 }
 
+# Permesso per pubblicare messaggi sui topic Pub/Sub (bim, production, boq, gantt)
+resource "google_project_iam_member" "parser_pubsub_publisher" {
+  project = var.project_id
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.parser.email}"
+}
+
 # ─── Service Account: ETL ────────────────────────────────────────────────────
 # Usato per i job ETL batch (es. import dati Grigolin, import BOQ)
 
