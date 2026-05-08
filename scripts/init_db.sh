@@ -154,7 +154,8 @@ psql \
     -p "${PROXY_PORT}" \
     -U "${DB_USER}" \
     -d "${DB_NAME}" \
-    -c "SELECT code, name, status FROM tenant.tenant ORDER BY created_at;" \
+    #-c "SELECT code, name, status FROM tenant.tenant ORDER BY created_at;" \
+    -c "SELECT code, name, status FROM tenant.company ORDER BY created_at;"
     -q
 
 # ─── Pulizia ─────────────────────────────────────────────────────────────────
