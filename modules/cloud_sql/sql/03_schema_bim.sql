@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS bim.bim_element (
     type_name   VARCHAR(255),
     -- Livello architettonico (es. "-1", "0", "Piano Terra")
     level       VARCHAR(100),
+    bim_authoring_id VARCHAR(50),
     -- Tutti i parametri di istanza e simbolo dal JSON (JSONB per query flessibili)
     -- Es: {"Length": {"Value": 12.5, "UM": "m"}, "Volume": {"Value": 0.45, "UM": "m³"}}
     parameters  JSONB        NOT NULL DEFAULT '{}',
@@ -85,6 +86,7 @@ CREATE TABLE IF NOT EXISTS bim.bim_element (
 );
 COMMENT ON TABLE bim.bim_element IS 'Elementi BIM filtrati (solo le famiglie strutturali rilevanti per il SAL).';
 COMMENT ON COLUMN bim.bim_element.ifc_guid IS 'GUID IFC globalmente univoco (es. 2L$Pj4Y6P8Q9HcZpA). Stabile tra versioni Revit.';
+COMMENT ON COLUMN bim.bim_element.bim_authoring_id IS 'ID dell''elemento nel sistema di authoring BIM (parametro DE_IdElement del JSON Revit)';
 COMMENT ON COLUMN bim.bim_element.parameters IS 'Tutti i parametri Revit come JSONB: {"NomeParametro": {"Value": X, "UM": "unità"}}';
 
 -- ─── bim_quantity ─────────────────────────────────────────────────────────────
@@ -96,11 +98,13 @@ CREATE TABLE IF NOT EXISTS bim.bim_quantity (
     quantity_type VARCHAR(100)  NOT NULL,
     value         NUMERIC(15,4) NOT NULL,
     unit_of_measure VARCHAR(20) NOT NULL,  -- Es. "m³", "m²", "m", "kg"
+    phase         VARCHAR(2)    NOT NULL DEFAULT 'DE',
     created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    -- Un elemento non può avere due righe con lo stesso tipo di quantità
-    CONSTRAINT uq_bim_quantity_element_type UNIQUE (element_id, quantity_type)
+    -- Un elemento non può avere due righe con lo stesso tipo di quantità nella stessa fase
+    CONSTRAINT uq_bim_quantity_element_type_phase UNIQUE (element_id, quantity_type, phase)
 );
 COMMENT ON TABLE bim.bim_quantity IS 'Quantità geometriche degli elementi BIM (volume, area, lunghezza, ecc.). CutLength ha priorità su Length.';
+COMMENT ON COLUMN bim.bim_quantity.phase IS 'Fase costruttiva del dato: DE=Design, AB=As-Built. Default DE per quantita geometriche BIM.';
 
 -- ─── construction_phase ──────────────────────────────────────────────────────
 -- Raggruppa le lavorazioni in macro-fasi (es. "Strutture", "Finiture", "Impianti").
@@ -185,6 +189,42 @@ CREATE TABLE IF NOT EXISTS bim.time_profile (
 );
 COMMENT ON TABLE bim.time_profile IS 'Produttività attesa (m³/giorno, ore/unità). Input per stima tempi SAL.';
 
+-- ─── bim_element_attribute: attributi parametrici per fase costruttiva ─────────
+-- Archivia i parametri Revit normalizzati per elemento, con tipo valore
+-- determinato automaticamente (numerico/testo/data).
+CREATE TABLE IF NOT EXISTS bim.bim_element_attribute (
+    id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- FK a bim_element (NON a element_id esterno — è la PK del record bim_element)
+    element_id     UUID         NOT NULL REFERENCES bim.bim_element(id) ON DELETE CASCADE,
+    -- Fase costruttiva derivata dal prefisso del parametro Revit, se presente
+    phase          VARCHAR(2)   CHECK (phase IS NULL OR phase IN ('DE','AB')),
+    attribute_group VARCHAR(50),
+    -- Nome parametro normalizzato senza prefisso (es. "DE_IdElement" -> "IdElement")
+    attribute_name VARCHAR(200) NOT NULL,
+    source_attribute_name VARCHAR(255),
+    unit_of_measure VARCHAR(50),
+    -- Uno solo dei tre campi valore è non-NULL per riga
+    value_numeric  NUMERIC(20,6),
+    value_text     VARCHAR(500),
+    value_date     DATE,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_bim_element_attribute_key UNIQUE NULLS NOT DISTINCT
+        (element_id, phase, attribute_group, attribute_name, source_attribute_name)
+);
+
+COMMENT ON TABLE bim.bim_element_attribute
+    IS 'Attributi parametrici Revit normalizzati per elemento e fase costruttiva.';
+COMMENT ON COLUMN bim.bim_element_attribute.phase
+    IS 'Fase costruttiva del dato: DE=Design, AB=As-Built, NULL=non applicabile';
+COMMENT ON COLUMN bim.bim_element_attribute.attribute_group
+    IS 'Gruppo logico del parametro Revit, quando disponibile';
+COMMENT ON COLUMN bim.bim_element_attribute.attribute_name
+    IS 'Nome parametro normalizzato senza prefisso di fase';
+COMMENT ON COLUMN bim.bim_element_attribute.source_attribute_name
+    IS 'Nome parametro sorgente completo come letto dal JSON Revit';
+COMMENT ON COLUMN bim.bim_element_attribute.unit_of_measure
+    IS 'Unita di misura del parametro, quando presente';
+
 -- ─── Indici ──────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_bim_model_tenant    ON bim.bim_model(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_bim_model_project   ON bim.bim_model(project_code);
@@ -203,106 +243,6 @@ CREATE INDEX IF NOT EXISTS idx_bim_elem_act_elem    ON bim.element_activity(elem
 CREATE INDEX IF NOT EXISTS idx_bim_elem_act_act     ON bim.element_activity(activity_id);
 CREATE INDEX IF NOT EXISTS idx_bim_meas_rule_act    ON bim.measurement_rule(activity_id);
 CREATE INDEX IF NOT EXISTS idx_bim_time_prof_act    ON bim.time_profile(activity_id);
-
--- ─── Constraint UNIQUE aggiunti post-deploy ───────────────────────────────────
--- Idempotenti: falliscono se eseguiti su un DB che ha già il constraint (es. prod).
--- Su un DB fresco i constraint sopra (inline in CREATE TABLE) li creano già.
--- Questi ALTER TABLE servono per aggiornare DB esistenti che mancavano del constraint.
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'uq_bim_model_tenant_path'
-    ) THEN
-        ALTER TABLE bim.bim_model
-            ADD CONSTRAINT uq_bim_model_tenant_path
-            UNIQUE (tenant_id, source_gcs_path);
-    END IF;
-END$$;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'uq_bim_quantity_element_type'
-    ) THEN
-        ALTER TABLE bim.bim_quantity
-            ADD CONSTRAINT uq_bim_quantity_element_type
-            UNIQUE (element_id, quantity_type);
-    END IF;
-END$$;
-
--- =============================================================================
--- Migration 07 — 2026-05-06
--- Eseguita manualmente sul DB di produzione il 2026-05-06.
--- Registrata qui per tenere il DDL di riferimento allineato con lo schema reale.
---
--- ATTENZIONE: questi statement sono già stati eseguiti su prod.
---   - Su un DB di sviluppo nuovo: possono fallire se le colonne/tabelle esistono già.
---   - Usare "IF NOT EXISTS" / "IF EXISTS" per idempotenza.
--- =============================================================================
-
--- ─── bim_element: ID authoring Revit (parametro DE_IdElement) ─────────────────
--- Permette di correlare ogni elemento con il suo ID nell'ambiente di authoring BIM.
-ALTER TABLE bim.bim_element
-    ADD COLUMN IF NOT EXISTS bim_authoring_id VARCHAR(50);
-
-COMMENT ON COLUMN bim.bim_element.bim_authoring_id
-    IS 'ID dell''elemento nel sistema di authoring BIM (parametro DE_IdElement del JSON Revit)';
-
--- ─── bim_quantity: aggiunta fase costruttiva ──────────────────────────────────
--- La fase "DE" (Design) distingue i dati di progettazione da As-Built, ecc.
--- DEFAULT 'DE' per retrocompatibilità con i record già presenti.
-ALTER TABLE bim.bim_quantity
-    ADD COLUMN IF NOT EXISTS phase VARCHAR(2) NOT NULL DEFAULT 'DE';
-
--- Aggiorna il UNIQUE constraint per includere la fase.
--- Il vecchio constraint uq_bim_quantity_element_type è sostituito da uno che include phase.
-ALTER TABLE bim.bim_quantity
-    DROP CONSTRAINT IF EXISTS uq_bim_quantity_element_type;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'uq_bim_quantity_element_type_phase'
-    ) THEN
-        ALTER TABLE bim.bim_quantity
-            ADD CONSTRAINT uq_bim_quantity_element_type_phase
-            UNIQUE (element_id, quantity_type, phase);
-    END IF;
-END$$;
-
-COMMENT ON COLUMN bim.bim_quantity.phase
-    IS 'Fase costruttiva del dato: DE=Design, AB=As-Built, ecc. Sempre DE per quantità geometriche BIM.';
-
--- ─── bim_element_attribute: attributi parametrici per fase costruttiva ─────────
--- Archivia i parametri Revit prefissati (DE_, AB_, LK_, MA_) e i campi WBS
--- per ogni elemento, con tipo valore determinato automaticamente (numerico/testo/data).
-CREATE TABLE IF NOT EXISTS bim.bim_element_attribute (
-    id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    -- FK a bim_element (NON a element_id esterno — è la PK del record bim_element)
-    element_id     UUID         NOT NULL REFERENCES bim.bim_element(id) ON DELETE CASCADE,
-    -- Fase costruttiva derivata dal prefisso del parametro Revit
-    phase          VARCHAR(5)   NOT NULL CHECK (phase IN ('DE','AB','LK','MA','WBS')),
-    -- Nome parametro senza prefisso (es. "DE_IdElement" → "IdElement")
-    attribute_name VARCHAR(200) NOT NULL,
-    -- Uno solo dei tre campi valore è non-NULL per riga
-    value_numeric  NUMERIC(20,6),
-    value_text     VARCHAR(500),
-    value_date     DATE,
-    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_bim_attr_element_phase_name UNIQUE (element_id, phase, attribute_name)
-);
-
-COMMENT ON TABLE bim.bim_element_attribute
-    IS 'Attributi parametrici Revit per fase costruttiva. Estratti da parametri DE_/AB_/LK_/MA_ e campi _WBS.';
-COMMENT ON COLUMN bim.bim_element_attribute.phase
-    IS 'DE=Design, AB=As-Built, LK=Lavorazioni, MA=Manutenzione, WBS=Work Breakdown Structure';
-COMMENT ON COLUMN bim.bim_element_attribute.attribute_name
-    IS 'Nome parametro senza prefisso (per DE_: strip ''DE_'', per WBS: nome completo incluso suffisso)';
-
--- Indici per lookup per fase e per attribute_name
 CREATE INDEX IF NOT EXISTS idx_bim_attr_element   ON bim.bim_element_attribute(element_id);
 CREATE INDEX IF NOT EXISTS idx_bim_attr_phase      ON bim.bim_element_attribute(phase);
 CREATE INDEX IF NOT EXISTS idx_bim_attr_name       ON bim.bim_element_attribute(attribute_name);
