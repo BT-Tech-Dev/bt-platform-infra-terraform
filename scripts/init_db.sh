@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# scripts/init_db.sh — Inizializza i 10 schemi PostgreSQL nel Cloud SQL
+# scripts/init_db.sh — Inizializza gli 11 schemi PostgreSQL nel Cloud SQL
 #
 # Uso: bash scripts/init_db.sh [PROJECT_ID] [INSTANCE] [DB_NAME] [DB_USER]
 # Es:  bash scripts/init_db.sh bt-platform-prod bt-platform-pg-prod db_bt_platform postgres
@@ -135,6 +135,7 @@ run_sql "${SQL_DIR}/09_schema_document.sql"      "Schema document (metadati file
 run_sql "${SQL_DIR}/10_schema_read.sql"          "Schema read (CQRS proiezioni)"
 run_sql "${SQL_DIR}/11_schema_external.sql"      "Schema external (integrazioni)"
 run_sql "${SQL_DIR}/12_seed_tenants.sql"         "Seed tenant iniziali (PPDL, BAL2)"
+run_sql "${SQL_DIR}/14_schema_raw.sql"           "Schema raw (MS-05 ingestion)"
 
 # ─── Verifica finale ──────────────────────────────────────────────────────────
 echo ""
@@ -144,7 +145,7 @@ psql \
     -p "${PROXY_PORT}" \
     -U "${DB_USER}" \
     -d "${DB_NAME}" \
-    -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('bim','process','boq','production','progress','quality','tenant','document','read','external') ORDER BY schema_name;" \
+    -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('bim','process','boq','production','progress','quality','tenant','document','read','external','raw') ORDER BY schema_name;" \
     -q
 
 echo ""
