@@ -101,3 +101,36 @@ resource "google_cloudbuild_trigger" "bim_parser" {
     var.environment,
   ]
 }
+
+# =============================================================================
+# Trigger CI/CD: push main -> build + deploy production-ingestion-service
+# =============================================================================
+
+resource "google_cloudbuild_trigger" "production_ingestion_service" {
+  name     = "cb-production-ingestion-service-${var.environment}"
+  project  = var.project_id
+  location = var.region
+
+  description = "Build e deploy automatico di production-ingestion-service su push a main (services/production-ingestion-service/)"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repo_name
+
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "services/production-ingestion-service/cloudbuild.yaml"
+
+  included_files = ["services/production-ingestion-service/**"]
+
+  service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
+
+  tags = [
+    "production-ingestion-service",
+    "cloud-run",
+    var.environment,
+  ]
+}

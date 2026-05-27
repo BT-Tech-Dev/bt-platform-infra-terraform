@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS bim.bim_model (
     tenant_id       UUID         NOT NULL REFERENCES tenant.company(id),
     -- Codice progetto Revit (es. "0549-IDG")
     project_code    VARCHAR(50)  NOT NULL,
+    -- Codice progetto sorgente Revit/JSON, distinto dal project_code piattaforma BT
+    source_project_code VARCHAR(50),
     -- Nome file Revit senza estensione (es. "0549-IDG-PPDL-L00-A-INF-3D-A")
     file_name       VARCHAR(255) NOT NULL,
     -- GUID univoco dell'export (generato dal plugin Orienta Trium)
