@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS raw.import_file (
     source_file_name        VARCHAR(255),
     source_file_path        TEXT NOT NULL,
     source_bucket           VARCHAR(255),
-    source_file_hash        VARCHAR(64),
+    source_file_hash        VARCHAR(64) NOT NULL,
     source_file_size_bytes  BIGINT,
     source_mime_type        VARCHAR(100),
     parser_name             VARCHAR(100),
     parser_version          VARCHAR(50),
     ingestion_status        VARCHAR(30) DEFAULT 'received',
-    idempotency_key         VARCHAR(128),
+    idempotency_key         VARCHAR(128) NOT NULL,
     rows_total              INTEGER,
     rows_parsed             INTEGER,
     rows_failed             INTEGER,
@@ -46,7 +46,9 @@ CREATE TABLE IF NOT EXISTS raw.import_file (
     dq_errors               JSONB DEFAULT '[]'::jsonb,
     created_at              TIMESTAMPTZ DEFAULT NOW(),
     updated_at              TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_raw_import_file_idempotency UNIQUE (idempotency_key)
+    CONSTRAINT uq_raw_import_file_idempotency UNIQUE (idempotency_key),
+    CONSTRAINT ck_raw_import_file_source_file_hash_sha256
+        CHECK (source_file_hash ~ '^[0-9A-Fa-f]{64}$')
 );
 
 COMMENT ON TABLE raw.import_file IS 'Technical index for raw source files stored in object storage.';
@@ -67,6 +69,7 @@ CREATE TABLE IF NOT EXISTS raw.ingestion_run (
     run_status          VARCHAR(30) NOT NULL,
     started_at          TIMESTAMPTZ DEFAULT NOW(),
     completed_at        TIMESTAMPTZ,
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
     rows_total          INTEGER,
     rows_parsed         INTEGER,
     rows_failed         INTEGER,
@@ -92,6 +95,16 @@ CREATE TABLE IF NOT EXISTS raw.ingestion_issue (
 );
 
 COMMENT ON TABLE raw.ingestion_issue IS 'Structured parser and data-quality issues raised during ingestion.';
+
+DROP TRIGGER IF EXISTS trg_raw_import_file_updated_at ON raw.import_file;
+CREATE TRIGGER trg_raw_import_file_updated_at
+    BEFORE UPDATE ON raw.import_file
+    FOR EACH ROW EXECUTE FUNCTION tenant.update_updated_at();
+
+DROP TRIGGER IF EXISTS trg_raw_ingestion_run_updated_at ON raw.ingestion_run;
+CREATE TRIGGER trg_raw_ingestion_run_updated_at
+    BEFORE UPDATE ON raw.ingestion_run
+    FOR EACH ROW EXECUTE FUNCTION tenant.update_updated_at();
 
 -- =============================================================================
 -- Indexes

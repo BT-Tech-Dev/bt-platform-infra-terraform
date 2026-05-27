@@ -32,17 +32,17 @@ provider "google" {
 
 resource "google_project_service" "apis" {
   for_each = toset([
-    "sqladmin.googleapis.com",              # Cloud SQL
-    "storage.googleapis.com",               # Cloud Storage (GCS)
-    "pubsub.googleapis.com",                # Pub/Sub (messaggistica asincrona)
-    "eventarc.googleapis.com",              # EventArc (trigger basati su eventi)
-    "run.googleapis.com",                   # Cloud Run (container serverless)
-    "secretmanager.googleapis.com",         # Secret Manager (gestione segreti)
-    "artifactregistry.googleapis.com",      # Artifact Registry (Docker images)
-    "cloudbuild.googleapis.com",            # Cloud Build (CI/CD)
-    "iam.googleapis.com",                   # IAM (identity and access management)
-    "cloudresourcemanager.googleapis.com",  # Resource Manager (gestione progetto)
-    "servicenetworking.googleapis.com",     # Service Networking (per peering VPC futuro)
+    "sqladmin.googleapis.com",             # Cloud SQL
+    "storage.googleapis.com",              # Cloud Storage (GCS)
+    "pubsub.googleapis.com",               # Pub/Sub (messaggistica asincrona)
+    "eventarc.googleapis.com",             # EventArc (trigger basati su eventi)
+    "run.googleapis.com",                  # Cloud Run (container serverless)
+    "secretmanager.googleapis.com",        # Secret Manager (gestione segreti)
+    "artifactregistry.googleapis.com",     # Artifact Registry (Docker images)
+    "cloudbuild.googleapis.com",           # Cloud Build (CI/CD)
+    "iam.googleapis.com",                  # IAM (identity and access management)
+    "cloudresourcemanager.googleapis.com", # Resource Manager (gestione progetto)
+    "servicenetworking.googleapis.com",    # Service Networking (per peering VPC futuro)
   ])
 
   project                    = var.project_id
@@ -75,8 +75,8 @@ module "storage" {
   region      = var.region
   environment = var.environment
 
-  sa_etl_email     = module.iam.sa_etl_email
-  sa_parser_email  = module.iam.sa_parser_email
+  sa_etl_email    = module.iam.sa_etl_email
+  sa_parser_email = module.iam.sa_parser_email
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
   topic_staging_uploads_id = module.pubsub.topic_staging_uploads_id
@@ -138,6 +138,8 @@ module "pubsub" {
   region      = var.region
   environment = var.environment
 
+  enable_debug_pubsub_subscriptions = var.enable_debug_pubsub_subscriptions
+
   depends_on = [google_project_service.apis]
 }
 
@@ -172,11 +174,11 @@ module "cloud_run" {
 
   sa_parser_email = module.iam.sa_parser_email
 
-  bucket_staging_name    = module.storage.bucket_staging_name
-  bucket_ingest_name     = module.storage.bucket_ingest_name
-  bucket_handoff_name    = module.storage.bucket_handoff_name
-  db_connection_name     = module.cloud_sql.connection_name
-  db_name                = var.db_name
+  bucket_staging_name = module.storage.bucket_staging_name
+  bucket_ingest_name  = module.storage.bucket_ingest_name
+  bucket_handoff_name = module.storage.bucket_handoff_name
+  db_connection_name  = module.cloud_sql.connection_name
+  db_name             = var.db_name
 
   sa_eventarc_email = module.iam.sa_eventarc_email
 
@@ -215,22 +217,9 @@ resource "null_resource" "init_db" {
   # Terraform confronta questi valori tra un apply e il successivo.
   # Se uno cambia → distrugge e ricrea il null_resource → esegue il provisioner.
   triggers = {
-    # Riesegui se l'istanza Cloud SQL viene ricreata
-    instance = module.cloud_sql.connection_name
-
-    # Riesegui se qualsiasi file SQL viene modificato
-    sql_01 = filesha256("${path.root}/modules/cloud_sql/sql/01_schemas_extensions.sql")
-    sql_02 = filesha256("${path.root}/modules/cloud_sql/sql/02_schema_tenant.sql")
-    sql_03 = filesha256("${path.root}/modules/cloud_sql/sql/03_schema_bim.sql")
-    sql_04 = filesha256("${path.root}/modules/cloud_sql/sql/04_schema_process.sql")
-    sql_05 = filesha256("${path.root}/modules/cloud_sql/sql/05_schema_boq.sql")
-    sql_06 = filesha256("${path.root}/modules/cloud_sql/sql/06_schema_production.sql")
-    sql_07 = filesha256("${path.root}/modules/cloud_sql/sql/07_schema_progress.sql")
-    sql_08 = filesha256("${path.root}/modules/cloud_sql/sql/08_schema_quality.sql")
-    sql_09 = filesha256("${path.root}/modules/cloud_sql/sql/09_schema_document.sql")
-    sql_10 = filesha256("${path.root}/modules/cloud_sql/sql/10_schema_read.sql")
-    sql_11 = filesha256("${path.root}/modules/cloud_sql/sql/11_schema_external.sql")
-    sql_12 = filesha256("${path.root}/modules/cloud_sql/sql/12_seed_tenants.sql")
+    instance        = module.cloud_sql.connection_name
+    enabled         = tostring(var.enable_db_init)
+    db_init_version = var.db_init_version
   }
 
   # ─── Provisioner: cosa eseguire ──────────────────────────────────────────────
@@ -240,7 +229,7 @@ resource "null_resource" "init_db" {
     # Nota: gcloud builds submit è sincrono per default — Terraform aspetta
     # che il build finisca prima di continuare. Se il build fallisce,
     # terraform apply fallisce e mostra l'errore.
-    command = "gcloud builds submit . --config=scripts/cloudbuild-init-db.yaml --project=${var.project_id} --quiet"
+    command = var.enable_db_init ? "gcloud builds submit . --config=scripts/cloudbuild-init-db.yaml --project=${var.project_id} --quiet" : "echo DB init disabled. Set enable_db_init=true and increment db_init_version to bootstrap explicitly."
   }
 
   depends_on = [
@@ -294,6 +283,10 @@ module "eventarc" {
   # Trigger 2: topic BIM → bim-parser-v1
   cloud_run_bim_parser_name = module.cloud_run.bim_parser_name
   topic_gcs_bim_id          = module.pubsub.topic_gcs_bim_id
+
+  # Trigger 3: topic production -> production-ingestion-service (MS-05)
+  cloud_run_production_ingestion_service_name = module.cloud_run.production_ingestion_service_name
+  topic_gcs_production_id                     = module.pubsub.topic_gcs_production_id
 
   depends_on = [
     module.storage,

@@ -17,3 +17,13 @@ output "bucket_watcher_name" {
   description = "Nome del servizio Cloud Run bucket-watcher (usato da EventArc)"
   value       = google_cloud_run_v2_service.bucket_watcher.name
 }
+
+output "production_ingestion_service_name" {
+  description = "Nome del servizio Cloud Run production-ingestion-service"
+  value       = google_cloud_run_v2_service.production_ingestion_service.name
+}
+
+output "production_ingestion_service_url" {
+  description = "URL HTTPS del servizio Cloud Run production-ingestion-service"
+  value       = google_cloud_run_v2_service.production_ingestion_service.uri
+}

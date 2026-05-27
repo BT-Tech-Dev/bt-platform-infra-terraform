@@ -86,3 +86,39 @@ resource "google_eventarc_trigger" "gcs_bim_to_bim_parser" {
     step        = "2-parse"
   }
 }
+
+# â”€â”€â”€ Trigger 3: topic production â†’ production-ingestion-service â”€â”€â”€â”€â”€â”€â”€â”€
+# Ascolta il topic bt-platform-gcs-production-{env} pubblicato da bucket-watcher
+# e invoca MS-05 production-ingestion-service POST /ingest.
+resource "google_eventarc_trigger" "gcs_production_to_production_ingestion" {
+  name     = "trg-bt-gcs-production-to-ms05-${var.environment}"
+  location = var.region
+  project  = var.project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.pubsub.topic.v1.messagePublished"
+  }
+
+  transport {
+    pubsub {
+      topic = var.topic_gcs_production_id
+    }
+  }
+
+  destination {
+    cloud_run_service {
+      service = var.cloud_run_production_ingestion_service_name
+      region  = var.region
+      path    = "/ingest"
+    }
+  }
+
+  service_account = var.sa_eventarc_email
+
+  labels = {
+    environment = var.environment
+    pipeline    = "production-ingest"
+    step        = "2-parse"
+  }
+}

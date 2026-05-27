@@ -67,6 +67,24 @@ variable "db_tier" {
 
 # ─── Tenant iniziali ─────────────────────────────────────────────────────────
 
+variable "enable_db_init" {
+  description = "Se true, abilita il bootstrap DB via Cloud Build. Default false per evitare init_db involontari su ambienti live."
+  type        = bool
+  default     = false
+}
+
+variable "db_init_version" {
+  description = "Versione manuale del bootstrap DB. Incrementare solo quando si vuole rilanciare esplicitamente init_db."
+  type        = string
+  default     = "manual-0"
+}
+
+variable "enable_debug_pubsub_subscriptions" {
+  description = "Abilita subscription Pub/Sub manuali per debug/replay."
+  type        = bool
+  default     = false
+}
+
 variable "initial_tenants" {
   description = <<-EOT
     Lista dei tenant iniziali da inserire nel seed del database.
@@ -74,9 +92,9 @@ variable "initial_tenants" {
     Il tenant_id è un UUID fisso (determinístico) usato come FK in tutte le tabelle.
   EOT
   type = list(object({
-    id          = string  # UUID v4
-    name        = string  # Nome completo progetto
-    code        = string  # Codice breve (es. "PPDL", "BAL2")
+    id          = string # UUID v4
+    name        = string # Nome completo progetto
+    code        = string # Codice breve (es. "PPDL", "BAL2")
     description = string
   }))
   default = [

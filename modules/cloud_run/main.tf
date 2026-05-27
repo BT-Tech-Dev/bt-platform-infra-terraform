@@ -51,8 +51,8 @@ resource "google_cloud_run_v2_service" "bim_parser" {
       # ─── Risorse ────────────────────────────────────────────────────
       resources {
         limits = {
-          cpu    = "1"       # 1 vCPU
-          memory = "512Mi"   # 512 MiB RAM (stesso del vecchio progetto)
+          cpu    = "1"     # 1 vCPU
+          memory = "512Mi" # 512 MiB RAM (stesso del vecchio progetto)
         }
         # cpu_idle = true: CPU allocata solo durante elaborazione richiesta (cost saving)
         cpu_idle = true
@@ -170,12 +170,12 @@ resource "google_cloud_run_v2_service" "bim_parser" {
 
     # ─── Scaling ─────────────────────────────────────────────────────
     scaling {
-      min_instance_count = 0    # Scale-to-zero: costo zero quando inattivo
-      max_instance_count = 3    # Max 3 istanze parallele (concurrency = 80 ognuna)
+      min_instance_count = 0 # Scale-to-zero: costo zero quando inattivo
+      max_instance_count = 3 # Max 3 istanze parallele (concurrency = 80 ognuna)
     }
 
     # ─── Timeout ─────────────────────────────────────────────────────
-    timeout = "300s"  # 5 minuti (stesso del vecchio progetto)
+    timeout = "300s" # 5 minuti (stesso del vecchio progetto)
 
     # ─── Concorrenza ─────────────────────────────────────────────────
     # NOTA: per l'ETL finale (scrittura DB) usare max_instance_count = 1
@@ -308,7 +308,7 @@ resource "google_cloud_run_v2_service" "bucket_watcher" {
       max_instance_count = 2
     }
 
-    timeout = "60s"   # routing veloce: nessuna elaborazione pesante
+    timeout = "60s" # routing veloce: nessuna elaborazione pesante
 
     max_instance_request_concurrency = 80
   }
@@ -334,6 +334,142 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_bucket_watch
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.bucket_watcher.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_eventarc_email}"
+}
+
+# =============================================================================
+# Cloud Run: production-ingestion-service (MS-05)
+#
+# Riceve eventi production dal topic bt-platform-gcs-production-{env} via
+# Eventarc e registra l'audit raw su schema raw. Il container reale verra'
+# sostituito da Cloud Build/deploy applicativo.
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "production_ingestion_service" {
+  name     = "production-ingestion-service"
+  location = var.region
+  project  = var.project_id
+
+  deletion_protection = false
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  template {
+    service_account = var.sa_parser_email
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.db_connection_name]
+      }
+    }
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+      env {
+        name  = "STAGING_BUCKET"
+        value = var.bucket_staging_name
+      }
+      env {
+        name  = "INSTANCE_CONNECTION_NAME"
+        value = var.db_connection_name
+      }
+      env {
+        name  = "DB_USER"
+        value = "bt_app"
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+      env {
+        name  = "DB_SCHEMA"
+        value = "raw"
+      }
+      env {
+        name  = "ENABLE_RAW_PERSISTENCE"
+        value = "true"
+      }
+      env {
+        name  = "RAW_PERSISTENCE_STRICT"
+        value = "false"
+      }
+      env {
+        name  = "LOG_LEVEL"
+        value = "INFO"
+      }
+
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "bt-platform-db-password-${var.environment}"
+            version = "latest"
+          }
+        }
+      }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+
+      ports {
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    timeout = "300s"
+
+    max_instance_request_concurrency = 20
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "production-ingestion-service"
+    version     = "v1"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      scaling
+    ]
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_production_ingestion" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.production_ingestion_service.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.sa_eventarc_email}"
 }

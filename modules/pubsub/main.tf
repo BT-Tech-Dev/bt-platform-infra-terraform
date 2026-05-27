@@ -35,7 +35,7 @@ resource "google_pubsub_topic" "gcs_staging_uploads" {
   }
 
   # Messaggi scadono dopo 7 giorni se non consumati
-  message_retention_duration = "604800s"  # 7 giorni in secondi
+  message_retention_duration = "604800s" # 7 giorni in secondi
 }
 
 # Passo 2: file nella zona di landing ingest
@@ -93,7 +93,7 @@ resource "google_pubsub_topic" "sal_events" {
     domain      = "sal-engine"
   }
 
-  message_retention_duration = "2592000s"  # 30 giorni (eventi SAL importanti)
+  message_retention_duration = "2592000s" # 30 giorni (eventi SAL importanti)
 }
 
 # Evento non conformità (NCR aperta, chiusa, escalation)
@@ -181,13 +181,15 @@ resource "google_pubsub_topic" "dead_letter" {
     type        = "dead-letter"
   }
 
-  message_retention_duration = "2592000s"  # 30 giorni per analisi errori
+  message_retention_duration = "2592000s" # 30 giorni per analisi errori
 }
 
 # ─── Subscription per il BIM Parser ─────────────────────────────────────────
 # EventArc gestisce le proprie subscription automaticamente,
 # ma questa è utile per debug e replay manuale dei messaggi.
 resource "google_pubsub_subscription" "staging_uploads_sub" {
+  count = var.enable_debug_pubsub_subscriptions ? 1 : 0
+
   name    = "${local.topic_prefix}-staging-uploads-sub-${var.environment}"
   topic   = google_pubsub_topic.gcs_staging_uploads.name
   project = var.project_id

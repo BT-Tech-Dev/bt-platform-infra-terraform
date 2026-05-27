@@ -21,3 +21,13 @@ variable "topic_gcs_bim_id" {
   description = "ID del topic bt-platform-gcs-bim-{env} (pubblicato da bucket-watcher)"
   type        = string
 }
+
+variable "cloud_run_production_ingestion_service_name" {
+  description = "Nome del Cloud Run production-ingestion-service (destinazione trigger Pub/Sub production)"
+  type        = string
+}
+
+variable "topic_gcs_production_id" {
+  description = "ID del topic bt-platform-gcs-production-{env} (pubblicato da bucket-watcher)"
+  type        = string
+}
