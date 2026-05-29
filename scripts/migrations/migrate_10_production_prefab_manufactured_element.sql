@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
     dq_warnings                    JSONB NOT NULL DEFAULT '[]'::jsonb,
     dq_errors                      JSONB NOT NULL DEFAULT '[]'::jsonb,
     extra_fields                   JSONB NOT NULL DEFAULT '{}'::jsonb,
-    raw_payload_json               JSONB NOT NULL,
+    raw_payload_json               JSONB,
     created_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
