@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
     project_code                   VARCHAR NOT NULL,
     source_file_id                 UUID NOT NULL REFERENCES raw.import_file(source_file_id),
     ingestion_run_id               UUID NOT NULL REFERENCES raw.ingestion_run(ingestion_run_id),
+    raw_record_id                  UUID,
     source_row_hash                VARCHAR(64) NOT NULL,
     source_sheet_name              VARCHAR,
     source_row_number              INTEGER NOT NULL,
