@@ -125,6 +125,7 @@ echo ""
 
 run_sql "${SQL_DIR}/01_schemas_extensions.sql"  "Creazione schemi e estensioni"
 run_sql "${SQL_DIR}/02_schema_tenant.sql"        "Schema tenant (master)"
+run_sql "${SQL_DIR}/14_schema_raw.sql"           "Schema raw (MS-05 ingestion)"
 run_sql "${SQL_DIR}/03_schema_bim.sql"           "Schema bim (dati Revit)"
 run_sql "${SQL_DIR}/04_schema_process.sql"       "Schema process (lavorazioni)"
 run_sql "${SQL_DIR}/05_schema_boq.sql"           "Schema boq (computo metrico)"
@@ -135,7 +136,6 @@ run_sql "${SQL_DIR}/09_schema_document.sql"      "Schema document (metadati file
 run_sql "${SQL_DIR}/10_schema_read.sql"          "Schema read (CQRS proiezioni)"
 run_sql "${SQL_DIR}/11_schema_external.sql"      "Schema external (integrazioni)"
 run_sql "${SQL_DIR}/12_seed_tenants.sql"         "Seed tenant iniziali (PPDL, BAL2)"
-run_sql "${SQL_DIR}/14_schema_raw.sql"           "Schema raw (MS-05 ingestion)"
 
 # ─── Verifica finale ──────────────────────────────────────────────────────────
 echo ""

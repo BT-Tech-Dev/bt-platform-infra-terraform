@@ -17,7 +17,7 @@
 -- Deve essere approvata prima di poter essere usata in produzione
 CREATE TABLE IF NOT EXISTS production.mix_recipe (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id         UUID         NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id         UUID         NOT NULL REFERENCES tenant.company(id),
     -- Codice ricetta (es. "CLS-C25-V1", "CLS-C30-V2")
     recipe_code       VARCHAR(50)  NOT NULL,
     -- Classe di resistenza (es. "C25/30", "C30/37") secondo UNI EN 206
@@ -42,7 +42,7 @@ COMMENT ON TABLE production.mix_recipe IS 'Ricette di produzione (calcestruzzo, 
 -- Componenti di ogni ricetta (materie prime)
 CREATE TABLE IF NOT EXISTS production.mix_recipe_component (
     id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id        UUID          NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id        UUID          NOT NULL REFERENCES tenant.company(id),
     recipe_id        UUID          NOT NULL REFERENCES production.mix_recipe(id) ON DELETE CASCADE,
     -- Tipo materiale (Cement, Aggregate, Water, Additive, Filler)
     material_type    VARCHAR(50)   NOT NULL
@@ -61,7 +61,7 @@ COMMENT ON TABLE production.mix_recipe_component IS 'Componenti della ricetta di
 -- Oggetti fisici prodotti (prefabbricati, casseri, lotti di materiale)
 CREATE TABLE IF NOT EXISTS production.produced_item (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   UUID         NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id   UUID         NOT NULL REFERENCES tenant.company(id),
     item_code   VARCHAR(100) NOT NULL,
     description TEXT,
     -- Component = elemento riutilizzabile (cassero, attrezzatura)
@@ -80,7 +80,7 @@ COMMENT ON TABLE production.produced_item IS 'Oggetti prodotti (prefabbricati, c
 -- Ordine di produzione: pianificazione di cosa produrre e quando
 CREATE TABLE IF NOT EXISTS production.production_order (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id        UUID         NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id        UUID         NOT NULL REFERENCES tenant.company(id),
     produced_item_id UUID         NOT NULL REFERENCES production.produced_item(id),
     order_code       VARCHAR(100) NOT NULL,
     planned_start    DATE,
@@ -98,7 +98,7 @@ COMMENT ON TABLE production.production_order IS 'Ordini di produzione: pianifica
 -- È il dato "grezzo" di ciò che l'impianto ha prodotto
 CREATE TABLE IF NOT EXISTS production.production_record (
     id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id            UUID          NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id            UUID          NOT NULL REFERENCES tenant.company(id),
     -- FK all'avanzamento lavori (element_progress) che questa produzione supporta
     -- Nullable: un record può arrivare prima che l'avanzamento sia registrato
     -- NOTA: il FK viene aggiunto in 07_schema_progress.sql (dopo che progress.element_progress esiste)
@@ -124,7 +124,74 @@ CREATE TABLE IF NOT EXISTS production.production_record (
 COMMENT ON TABLE production.production_record IS 'Record di produzione effettiva (OPC UA, CSV Grigolin, manuale). Dati grezzi con tracciabilità completa.';
 COMMENT ON COLUMN production.production_record.raw_data_payload IS 'Payload originale non trasformato: {"cdos_k": "...", "h2oRicp": "...", ...}';
 
--- ─── Indici ──────────────────────────────────────────────────────────────────
+-- =============================================================================
+-- prefab_manufactured_element
+-- MS-05 normalized/domain table for Moretti prefabricated manufactured elements.
+-- Raw artifacts remain in object storage and are indexed in raw.import_file.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
+    prefab_manufactured_element_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id                      UUID NOT NULL,
+    project_code                   VARCHAR NOT NULL,
+    source_file_id                 UUID NOT NULL REFERENCES raw.import_file(source_file_id),
+    ingestion_run_id               UUID NOT NULL REFERENCES raw.ingestion_run(ingestion_run_id),
+    source_row_hash                VARCHAR(64) NOT NULL,
+    source_sheet_name              VARCHAR,
+    source_row_number              INTEGER NOT NULL,
+    file_profile                   VARCHAR NOT NULL,
+    parser_name                    VARCHAR NOT NULL,
+    parser_version                 VARCHAR NOT NULL,
+
+    element_code                   VARCHAR NOT NULL,
+    element_serial_number          VARCHAR,
+    order_number                   VARCHAR,
+    order_status_code              VARCHAR,
+    department_code                VARCHAR,
+    customer_name                  VARCHAR,
+    quantity                       NUMERIC,
+    unit_of_measure                VARCHAR,
+    length_m                       NUMERIC,
+    width_m                        NUMERIC,
+    height_m                       NUMERIC,
+    volume_m3                      NUMERIC,
+    weight_kg                      NUMERIC,
+    mould_id                       VARCHAR,
+    mould_description              VARCHAR,
+    rck                            VARCHAR,
+    exposure_class                 VARCHAR,
+    fire_resistance                VARCHAR,
+    recipe_id                      VARCHAR,
+    element_type                   VARCHAR,
+    production_date                DATE,
+    storage_date                   DATE,
+    planned_date                   DATE,
+    completed_quantity             NUMERIC,
+
+    dq_status                      VARCHAR NOT NULL DEFAULT 'OK',
+    dq_warnings                    JSONB NOT NULL DEFAULT '[]'::jsonb,
+    dq_errors                      JSONB NOT NULL DEFAULT '[]'::jsonb,
+    extra_fields                   JSONB NOT NULL DEFAULT '{}'::jsonb,
+    raw_payload_json               JSONB NOT NULL,
+    created_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_prefab_manufactured_element_file_row_hash
+        UNIQUE (source_file_id, source_row_hash),
+    CONSTRAINT uq_prefab_manufactured_element_source_row
+        UNIQUE NULLS NOT DISTINCT (source_file_id, source_sheet_name, source_row_number)
+);
+
+COMMENT ON TABLE production.prefab_manufactured_element IS 'MS-05 normalized/domain table for Moretti prefabricated manufactured elements.';
+COMMENT ON COLUMN production.prefab_manufactured_element.source_file_id IS 'Raw artifact index reference in raw.import_file.';
+COMMENT ON COLUMN production.prefab_manufactured_element.ingestion_run_id IS 'Parser execution audit reference in raw.ingestion_run.';
+
+DROP TRIGGER IF EXISTS trg_prefab_manufactured_element_updated_at ON production.prefab_manufactured_element;
+CREATE TRIGGER trg_prefab_manufactured_element_updated_at
+    BEFORE UPDATE ON production.prefab_manufactured_element
+    FOR EACH ROW EXECUTE FUNCTION tenant.update_updated_at();
+
+-- Indici
 CREATE INDEX IF NOT EXISTS idx_prod_recipe_tenant     ON production.mix_recipe(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_prod_item_tenant       ON production.produced_item(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_prod_order_tenant      ON production.production_order(tenant_id);
@@ -132,3 +199,13 @@ CREATE INDEX IF NOT EXISTS idx_prod_record_tenant     ON production.production_r
 CREATE INDEX IF NOT EXISTS idx_prod_record_ep         ON production.production_record(element_progress_id);
 CREATE INDEX IF NOT EXISTS idx_prod_record_time       ON production.production_record(start_time);
 CREATE INDEX IF NOT EXISTS idx_prod_record_source     ON production.production_record(source_type);
+CREATE INDEX IF NOT EXISTS idx_prod_prefab_project_element
+    ON production.prefab_manufactured_element(project_code, element_code);
+CREATE INDEX IF NOT EXISTS idx_prod_prefab_project_serial
+    ON production.prefab_manufactured_element(project_code, element_serial_number);
+CREATE INDEX IF NOT EXISTS idx_prod_prefab_project_planned
+    ON production.prefab_manufactured_element(project_code, planned_date);
+CREATE INDEX IF NOT EXISTS idx_prod_prefab_source_file
+    ON production.prefab_manufactured_element(source_file_id);
+CREATE INDEX IF NOT EXISTS idx_prod_prefab_ingestion_run
+    ON production.prefab_manufactured_element(ingestion_run_id);

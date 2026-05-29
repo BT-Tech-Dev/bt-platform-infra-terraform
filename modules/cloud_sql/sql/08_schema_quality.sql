@@ -12,7 +12,7 @@
 -- Certificato di prova (es. cubetti calcestruzzo, prove di tiro bulloni)
 CREATE TABLE IF NOT EXISTS quality.quality_test_certificate (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id         UUID         NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id         UUID         NOT NULL REFERENCES tenant.company(id),
     -- FK all'avanzamento lavori a cui si riferisce questo certificato
     work_progress_id  UUID         NOT NULL REFERENCES progress.work_progress(id),
     -- Ricetta usata per questa produzione (opzionale: non tutti i test hanno ricetta)
@@ -46,7 +46,7 @@ COMMENT ON COLUMN quality.quality_test_certificate.outcome IS 'PASS=conforme, FA
 -- Non Conformità (NCR): deviazione da requisiti contrattuali o normativi
 CREATE TABLE IF NOT EXISTS quality.non_conformity (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id           UUID         NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id           UUID         NOT NULL REFERENCES tenant.company(id),
     -- FK all'avanzamento lavori dove è stata rilevata la NC
     work_progress_id    UUID         NOT NULL REFERENCES progress.work_progress(id),
     -- Data rilevazione NC

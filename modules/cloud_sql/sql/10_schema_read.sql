@@ -18,7 +18,7 @@
 -- Vista aggregata del SAL per progetto: percentuale completamento, valore economico
 CREATE TABLE IF NOT EXISTS read.project_sal_summary (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id           UUID          NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id           UUID          NOT NULL REFERENCES tenant.company(id),
     -- Aggiornato ogni volta che un SAL viene certificato o aggiornato
     last_updated_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     -- Contatori elementi BIM
@@ -43,7 +43,7 @@ COMMENT ON TABLE read.project_sal_summary IS 'CQRS: riepilogo SAL per progetto. 
 -- Stato di completamento per ogni elemento BIM (granularità massima)
 CREATE TABLE IF NOT EXISTS read.element_completion_view (
     id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id         UUID          NOT NULL REFERENCES tenant.tenant(id),
+    tenant_id         UUID          NOT NULL REFERENCES tenant.company(id),
     element_id        UUID          NOT NULL REFERENCES bim.bim_element(id),
     -- Quantità totale dal BIM
     total_quantity    NUMERIC(15,4) NOT NULL DEFAULT 0,

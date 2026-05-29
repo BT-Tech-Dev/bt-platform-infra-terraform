@@ -15,7 +15,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";  -- Alternativa per uuid_generate_v4
 -- Creazione schemi
 -- Ogni schema = un dominio funzionale separato.
 -- Questo permette di assegnare permessi diversi per dominio e di isolare
--- le tabelle per chiarezza (es. bim.bim_model vs process.work_activity).
+-- le tabelle per chiarezza (es. bim.bim_model vs bim.work_activity).
 -- =============================================================================
 
 -- Schema 1: dati geometrici BIM (da Revit via plugin Orienta Trium)

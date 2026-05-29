@@ -123,6 +123,7 @@ Write-Host "-> Esecuzione script SQL..." -ForegroundColor Cyan
 
 Invoke-SqlFile "$SQL_DIR\01_schemas_extensions.sql"  "Schemi + estensioni"
 Invoke-SqlFile "$SQL_DIR\02_schema_tenant.sql"        "Schema tenant (master)"
+Invoke-SqlFile "$SQL_DIR\14_schema_raw.sql"           "Schema raw (MS-05 ingestion)"
 Invoke-SqlFile "$SQL_DIR\03_schema_bim.sql"           "Schema bim"
 Invoke-SqlFile "$SQL_DIR\04_schema_process.sql"       "Schema process"
 Invoke-SqlFile "$SQL_DIR\05_schema_boq.sql"           "Schema boq"
@@ -140,7 +141,7 @@ Write-Host "-> Verifica schemi e tenant..." -ForegroundColor Cyan
 
 $verifySchemas = @"
 SELECT schema_name FROM information_schema.schemata
-WHERE schema_name IN ('bim','process','boq','production','progress','quality','tenant','document','read','external')
+WHERE schema_name IN ('bim','process','boq','production','progress','quality','tenant','document','read','external','raw')
 ORDER BY schema_name;
 "@
 $verifySchemas | psql -h 127.0.0.1 -p $PROXY_PORT -U $DB_USER -d $DB_NAME

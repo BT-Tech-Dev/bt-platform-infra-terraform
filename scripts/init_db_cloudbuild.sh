@@ -65,7 +65,24 @@ echo ""
 echo "-> Esecuzione script SQL..."
 SQL_DIR="/workspace/modules/cloud_sql/sql"
 
-for f in $(ls "$SQL_DIR"/*.sql | sort); do
+SQL_FILES=(
+  "01_schemas_extensions.sql"
+  "02_schema_tenant.sql"
+  "14_schema_raw.sql"
+  "03_schema_bim.sql"
+  "04_schema_process.sql"
+  "05_schema_boq.sql"
+  "06_schema_production.sql"
+  "07_schema_progress.sql"
+  "08_schema_quality.sql"
+  "09_schema_document.sql"
+  "10_schema_read.sql"
+  "11_schema_external.sql"
+  "12_seed_tenants.sql"
+)
+
+for BASENAME in "${SQL_FILES[@]}"; do
+  f="${SQL_DIR}/${BASENAME}"
   BASENAME=$(basename "$f")
   echo "   -> ${BASENAME}..."
   psql -h 127.0.0.1 -p 5432 -U postgres -d "${DB_NAME}" \
@@ -81,7 +98,7 @@ psql -h 127.0.0.1 -p 5432 -U postgres -d "${DB_NAME}" -c "
   FROM information_schema.schemata
   WHERE schema_name IN (
     'bim','process','boq','production','progress',
-    'quality','tenant','document','read','external'
+    'quality','tenant','document','read','external','raw'
   )
   ORDER BY schema_name;"
 
