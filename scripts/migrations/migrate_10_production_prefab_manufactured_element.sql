@@ -5,14 +5,17 @@
 -- COSA FA:
 --   1. Creates production.prefab_manufactured_element.
 --   2. Links normalized/domain rows to raw.import_file and raw.ingestion_run.
---   3. Adds idempotency constraints, query indexes, and updated_at trigger.
+--   3. Keeps raw_record_id lineage and nullable raw_payload_json.
+--   4. Adds idempotency constraints, query indexes, and updated_at trigger.
 -- =============================================================================
 
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
     prefab_manufactured_element_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id                      UUID NOT NULL,
+    tenant_id                      UUID NOT NULL
+                                   CONSTRAINT fk_prefab_manufactured_element_tenant
+                                   REFERENCES tenant.company(id),
     project_code                   VARCHAR NOT NULL,
     source_file_id                 UUID NOT NULL REFERENCES raw.import_file(source_file_id),
     ingestion_run_id               UUID NOT NULL REFERENCES raw.ingestion_run(ingestion_run_id),
@@ -62,6 +65,27 @@ CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
     CONSTRAINT uq_prefab_manufactured_element_source_row
         UNIQUE NULLS NOT DISTINCT (source_file_id, source_sheet_name, source_row_number)
 );
+
+ALTER TABLE production.prefab_manufactured_element
+    ADD COLUMN IF NOT EXISTS raw_record_id UUID,
+    ADD COLUMN IF NOT EXISTS raw_payload_json JSONB;
+
+ALTER TABLE production.prefab_manufactured_element
+    ALTER COLUMN raw_payload_json DROP NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'production.prefab_manufactured_element'::regclass
+          AND conname = 'fk_prefab_manufactured_element_tenant'
+    ) THEN
+        ALTER TABLE production.prefab_manufactured_element
+            ADD CONSTRAINT fk_prefab_manufactured_element_tenant
+            FOREIGN KEY (tenant_id) REFERENCES tenant.company(id);
+    END IF;
+END $$;
 
 ALTER TABLE production.prefab_manufactured_element
     DROP CONSTRAINT IF EXISTS uq_prefab_manufactured_element_source_row_hash;

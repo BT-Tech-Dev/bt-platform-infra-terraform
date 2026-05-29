@@ -132,7 +132,9 @@ COMMENT ON COLUMN production.production_record.raw_data_payload IS 'Payload orig
 
 CREATE TABLE IF NOT EXISTS production.prefab_manufactured_element (
     prefab_manufactured_element_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id                      UUID NOT NULL,
+    tenant_id                      UUID NOT NULL
+                                   CONSTRAINT fk_prefab_manufactured_element_tenant
+                                   REFERENCES tenant.company(id),
     project_code                   VARCHAR NOT NULL,
     source_file_id                 UUID NOT NULL REFERENCES raw.import_file(source_file_id),
     ingestion_run_id               UUID NOT NULL REFERENCES raw.ingestion_run(ingestion_run_id),
