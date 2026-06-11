@@ -2,89 +2,89 @@
 -- 09_schema_document.sql
 -- Schema: document
 --
--- Registro dei documenti della piattaforma e log delle sincronizzazioni ACDAT.
---
--- Tabelle:
---   document_ref  → metadati di ogni file caricato su GCS
---                   (BIM JSON, contratti PDF, computi XLSX, DDT, certificati)
---   acdat_sync_log → log operazioni di sync con ACDAT CDE (MS-08 ACDAT Connector)
---
--- I FILE NON sono in questa tabella — sono su GCS.
--- Qui si trovano solo i metadati: chi, cosa, quando, dove, stato.
+-- Canonical Layer 3 document evidence. MS-05 writes Layer 3 canonical evidence.
+-- Reconciliation writes Layer 4 evidence links in progress.
 -- =============================================================================
 
--- ─── document_ref ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS document.document_ref (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id       UUID          NOT NULL REFERENCES tenant.company(id),
-    -- Codice numerico nel sistema documentale del progetto
-    -- Es: "0549-IDG-PPDL-L00-A-INF-3D-A" (da norma UNI 11337)
-    doc_code        VARCHAR(100),
-    -- Tipo documento (determina quale parser MS usare)
-    doc_type        VARCHAR(50)   NOT NULL
-                    CHECK (doc_type IN ('BIM_JSON','CONTRACT_PDF','BOQ_XLSX',
-                                        'DDT_PDF','CERTIFICATE_PDF','GANTT',
-                                        'PHOTO','OTHER')),
-    -- Titolo leggibile (es. "Modello BIM strutture aprile 2026")
-    title           VARCHAR(255),
-    -- Nome file originale (es. "0549-IDG-PPDL-L00-A-INF-3D-A.json")
-    file_name       VARCHAR(512)  NOT NULL,
-    -- Path completo GCS (es. "gs://bt-platform-staging-prod/uploads/file.json")
-    gcs_path        TEXT          NOT NULL,
-    file_size_bytes BIGINT,
-    -- SHA-256 del file: per verifica integrità e deduplicazione
-    file_hash       VARCHAR(64),
-    mime_type       VARCHAR(100),
-    -- Versione numerica del documento (1 = primo caricamento)
-    version_num     INTEGER       NOT NULL DEFAULT 1,
-    -- Revisione da norma progettuale (A, B, C ...)
-    revision        VARCHAR(10),
-    -- uploaded → processing → processed | failed | archived
-    status          VARCHAR(20)   NOT NULL DEFAULT 'uploaded'
-                    CHECK (status IN ('uploaded','processing','processed','failed','archived')),
-    -- Tipo entità correlata (es. 'bim_model', 'sal', 'work_progress')
-    related_entity_type VARCHAR(50),
-    -- UUID dell'entità correlata (no FK: può referenziare tabelle diverse)
-    related_entity_id   UUID,
-    metadata        JSONB         NOT NULL DEFAULT '{}',
-    uploaded_by     VARCHAR(255),
-    uploaded_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    processed_at    TIMESTAMPTZ
+    document_ref_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenant.company(id),
+    project_code VARCHAR(50) NOT NULL,
+    project_element_id UUID,
+    doc_type VARCHAR(100) NOT NULL,
+    document_number VARCHAR(200),
+    title VARCHAR(500),
+    issuer_name VARCHAR(200),
+    recipient_name VARCHAR(200),
+    document_date DATE,
+    revision VARCHAR(50),
+    status VARCHAR(50),
+    source_authority VARCHAR(50),
+    source_uri TEXT,
+    source_document_hash VARCHAR(128),
+    source_file_id UUID REFERENCES raw.import_file(source_file_id),
+    ingestion_run_id UUID REFERENCES raw.ingestion_run(ingestion_run_id),
+    raw_record_id UUID,
+    source_row_hash VARCHAR(128),
+    source_sheet_name VARCHAR(200),
+    source_row_number INTEGER,
+    parser_name VARCHAR(100),
+    parser_version VARCHAR(50),
+    dq_status VARCHAR(30) NOT NULL DEFAULT 'OK',
+    dq_warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+    dq_errors JSONB NOT NULL DEFAULT '[]'::jsonb,
+    extra_fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (tenant_id, project_code)
+        REFERENCES tenant.project(tenant_id, project_code),
+    FOREIGN KEY (project_element_id, tenant_id, project_code)
+        REFERENCES bim.project_element_registry(project_element_id, tenant_id, project_code),
+    UNIQUE (document_ref_id, tenant_id, project_code),
+    CHECK (jsonb_typeof(dq_warnings) = 'array'),
+    CHECK (jsonb_typeof(dq_errors) = 'array'),
+    CHECK (jsonb_typeof(extra_fields) = 'object')
 );
-COMMENT ON TABLE document.document_ref IS 'Registro metadati documenti su GCS: BIM JSON, contratti, computi, DDT, certificati.';
 
--- ─── acdat_sync_log ───────────────────────────────────────────────────────────
--- Log di ogni operazione verso ACDAT (CDE italiano).
--- ACDAT = piattaforma CDE (Common Data Environment) obbligatoria per grandi opere.
--- Gestita da MS-08 ACDAT Connector.
+COMMENT ON TABLE document.document_ref IS
+    'Canonical Layer 3 document evidence written by MS-05. Reconciliation writes Layer 4 evidence links.';
+COMMENT ON COLUMN document.document_ref.project_element_id IS
+    'Nullable until Layer 4 reconciliation confirms a canonical project element match.';
+COMMENT ON COLUMN document.document_ref.source_row_hash IS
+    'Nullable for document-level sources without a stable row concept.';
+COMMENT ON COLUMN document.document_ref.raw_record_id IS
+    'Nullable source record identifier. TODO: add an FK when a canonical raw-record table exists.';
+
 CREATE TABLE IF NOT EXISTS document.acdat_sync_log (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id           UUID          NOT NULL REFERENCES tenant.company(id),
-    -- ID documento nel sistema ACDAT (assegnato da ACDAT, stabile)
-    acdat_document_id   VARCHAR(255),
-    -- INBOUND = ACDAT→BuildTrust (download), OUTBOUND = BuildTrust→ACDAT (upload)
-    direction           VARCHAR(10)   NOT NULL
-                        CHECK (direction IN ('INBOUND','OUTBOUND')),
-    -- CREATE=nuovo, UPDATE=revisione, DELETE=rimozione, DOWNLOAD=scarica, STATUS_CHECK=verifica
-    operation_type      VARCHAR(20)   NOT NULL
-                        CHECK (operation_type IN ('CREATE','UPDATE','DELETE','DOWNLOAD','STATUS_CHECK')),
-    status              VARCHAR(10)   NOT NULL DEFAULT 'PENDING'
-                        CHECK (status IN ('SUCCESS','FAILED','PENDING')),
-    -- FK al documento in document_ref (se il sync riguarda un file specifico)
-    document_ref_id     UUID          REFERENCES document.document_ref(id),
-    request_payload     JSONB,      -- Payload inviato ad ACDAT
-    response_payload    JSONB,      -- Risposta ricevuta da ACDAT
-    error_message       TEXT,
-    synced_at           TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    acdat_sync_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenant.company(id),
+    project_code VARCHAR(50) NOT NULL,
+    document_ref_id UUID,
+    acdat_document_id VARCHAR(255),
+    direction VARCHAR(10) NOT NULL CHECK (direction IN ('INBOUND', 'OUTBOUND')),
+    operation_type VARCHAR(20) NOT NULL
+        CHECK (operation_type IN ('CREATE', 'UPDATE', 'DELETE', 'DOWNLOAD', 'STATUS_CHECK')),
+    status VARCHAR(10) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('SUCCESS', 'FAILED', 'PENDING')),
+    request_payload JSONB,
+    response_payload JSONB,
+    error_message TEXT,
+    synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (tenant_id, project_code)
+        REFERENCES tenant.project(tenant_id, project_code),
+    FOREIGN KEY (document_ref_id, tenant_id, project_code)
+        REFERENCES document.document_ref(document_ref_id, tenant_id, project_code)
 );
-COMMENT ON TABLE document.acdat_sync_log IS 'Log operazioni MS-08 ACDAT Connector. Traccia upload/download verso CDE italiano.';
 
--- ─── Indici ──────────────────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_doc_ref_tenant    ON document.document_ref(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_doc_ref_type      ON document.document_ref(doc_type);
-CREATE INDEX IF NOT EXISTS idx_doc_ref_status    ON document.document_ref(status);
-CREATE INDEX IF NOT EXISTS idx_doc_ref_hash      ON document.document_ref(file_hash);
-CREATE INDEX IF NOT EXISTS idx_doc_ref_uploaded  ON document.document_ref(uploaded_at);
-CREATE INDEX IF NOT EXISTS idx_acdat_log_tenant  ON document.acdat_sync_log(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_acdat_log_status  ON document.acdat_sync_log(status);
-CREATE INDEX IF NOT EXISTS idx_acdat_log_doc_ref ON document.acdat_sync_log(document_ref_id);
+CREATE INDEX IF NOT EXISTS idx_document_ref_type_date
+    ON document.document_ref(tenant_id, project_code, doc_type, document_date);
+CREATE INDEX IF NOT EXISTS idx_document_ref_element
+    ON document.document_ref(project_element_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_document_ref_source_row
+    ON document.document_ref(source_file_id, source_row_hash)
+    WHERE source_file_id IS NOT NULL AND source_row_hash IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_document_ref_source_document
+    ON document.document_ref(tenant_id, project_code, doc_type, source_document_hash)
+    WHERE source_document_hash IS NOT NULL AND source_row_hash IS NULL;
+CREATE INDEX IF NOT EXISTS idx_acdat_sync_log_document
+    ON document.acdat_sync_log(document_ref_id);

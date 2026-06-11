@@ -1,0 +1,135 @@
+-- READ-ONLY VALIDATION. Safe to run after migrations 12, 13, and 14.
+-- This file does not create, alter, truncate, or drop database objects.
+
+-- ---------------------------------------------------------------------------
+-- 1. Migration-order prerequisites and canonical tables
+-- ---------------------------------------------------------------------------
+SELECT object_name, to_regclass(object_name) IS NOT NULL AS exists
+FROM (
+    VALUES
+        ('tenant.company'),
+        ('tenant.project'),
+        ('raw.import_file'),
+        ('raw.ingestion_run'),
+        ('bim.bt_element_type_catalog'),
+        ('bim.bt_element_type_activity_template'),
+        ('bim.bt_element_type_quality_requirement'),
+        ('bim.bt_element_type_document_requirement'),
+        ('bim.project_element_registry'),
+        ('bim.project_element_identifier'),
+        ('document.document_ref'),
+        ('production.mix_recipe'),
+        ('production.mix_recipe_component'),
+        ('production.production_record'),
+        ('quality.quality_test_result'),
+        ('progress.evidence_link'),
+        ('progress.progress_derivation_rule')
+) AS expected(object_name)
+ORDER BY object_name;
+
+-- ---------------------------------------------------------------------------
+-- 2. Legacy tables must be absent
+-- ---------------------------------------------------------------------------
+SELECT object_name, to_regclass(object_name) IS NULL AS is_absent
+FROM (
+    VALUES
+        ('production.prefab_manufactured_element'),
+        ('quality.prefab_compression_test_result')
+) AS legacy(object_name)
+ORDER BY object_name;
+
+-- ---------------------------------------------------------------------------
+-- 3. Stale canonical columns must be absent; expected result is zero rows
+-- ---------------------------------------------------------------------------
+SELECT table_schema, table_name, column_name
+FROM information_schema.columns
+WHERE (table_schema, table_name, column_name) IN (
+    ('production', 'production_record', 'id'),
+    ('production', 'production_record', 'element_progress_id'),
+    ('document', 'document_ref', 'id'),
+    ('production', 'mix_recipe', 'id')
+)
+ORDER BY table_schema, table_name, column_name;
+
+-- ---------------------------------------------------------------------------
+-- 4. evidence_link contract
+-- ---------------------------------------------------------------------------
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'progress'
+  AND table_name = 'evidence_link'
+  AND column_name IN (
+      'evidence_link_id',
+      'tenant_id',
+      'project_code',
+      'project_element_id',
+      'evidence_kind',
+      'evidence_id',
+      'matched_identifier_id',
+      'match_method',
+      'link_status',
+      'is_effective',
+      'reason'
+  )
+ORDER BY ordinal_position;
+
+SELECT conname, pg_get_constraintdef(oid) AS constraint_definition
+FROM pg_constraint
+WHERE conrelid = 'progress.evidence_link'::regclass
+  AND contype = 'c'
+ORDER BY conname;
+
+-- ---------------------------------------------------------------------------
+-- 5. Required idempotency/current-state indexes
+-- ---------------------------------------------------------------------------
+SELECT expected.index_name,
+       actual.indexname IS NOT NULL AS exists,
+       actual.indexdef
+FROM (
+    VALUES
+        ('uq_production_record_source_row'),
+        ('uq_quality_test_result_source_row'),
+        ('uq_evidence_link_effective'),
+        ('uq_evidence_link_current_unresolved')
+) AS expected(index_name)
+LEFT JOIN pg_indexes AS actual
+  ON actual.indexname = expected.index_name
+ORDER BY expected.index_name;
+
+-- ---------------------------------------------------------------------------
+-- 6. Primary-key shape
+-- ---------------------------------------------------------------------------
+SELECT conrelid::regclass AS table_name,
+       conname,
+       pg_get_constraintdef(oid) AS primary_key_definition
+FROM pg_constraint
+WHERE conrelid IN (
+    'production.production_record'::regclass,
+    'quality.quality_test_result'::regclass,
+    'document.document_ref'::regclass,
+    'progress.evidence_link'::regclass
+)
+  AND contype = 'p'
+ORDER BY conrelid::regclass::text;
+
+-- ---------------------------------------------------------------------------
+-- 7. Effective evidence integrity; expected count is zero
+-- ---------------------------------------------------------------------------
+SELECT COUNT(*) AS invalid_effective_links
+FROM progress.evidence_link
+WHERE is_effective
+  AND (link_status <> 'confirmed' OR project_element_id IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- 8. Current unresolved uniqueness health; expected duplicate_groups is zero
+-- ---------------------------------------------------------------------------
+SELECT COUNT(*) AS duplicate_groups
+FROM (
+    SELECT tenant_id, project_code, evidence_kind, evidence_id
+    FROM progress.evidence_link
+    WHERE link_status IN ('unmatched', 'needs_review')
+      AND is_effective = FALSE
+    GROUP BY tenant_id, project_code, evidence_kind, evidence_id
+    HAVING COUNT(*) > 1
+) AS duplicates;
+
