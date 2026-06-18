@@ -72,15 +72,29 @@ WITH deprecated_tables AS (
     ) AS deprecated(table_name)
     WHERE to_regclass(table_name) IS NOT NULL
 )
-SELECT conrelid::regclass AS referencing_table,
-       conname AS constraint_name,
-       confrelid::regclass AS referenced_table,
-       pg_get_constraintdef(oid) AS constraint_definition
-FROM pg_constraint
-WHERE contype = 'f'
-  AND confrelid IN (SELECT table_oid FROM deprecated_tables)
-  AND conrelid NOT IN (SELECT table_oid FROM deprecated_tables)
-ORDER BY referencing_table::text, constraint_name;
+SELECT nsp_ref.nspname AS referencing_schema,
+       cls_ref.relname AS referencing_table,
+       con.conname AS constraint_name,
+       nsp_tgt.nspname AS referenced_schema,
+       cls_tgt.relname AS referenced_table,
+       pg_get_constraintdef(con.oid) AS constraint_definition
+FROM pg_constraint AS con
+JOIN pg_class AS cls_ref
+  ON cls_ref.oid = con.conrelid
+JOIN pg_namespace AS nsp_ref
+  ON nsp_ref.oid = cls_ref.relnamespace
+JOIN pg_class AS cls_tgt
+  ON cls_tgt.oid = con.confrelid
+JOIN pg_namespace AS nsp_tgt
+  ON nsp_tgt.oid = cls_tgt.relnamespace
+WHERE con.contype = 'f'
+  AND con.confrelid IN (SELECT table_oid FROM deprecated_tables)
+  AND con.conrelid NOT IN (SELECT table_oid FROM deprecated_tables)
+ORDER BY nsp_ref.nspname,
+         cls_ref.relname,
+         con.conname,
+         nsp_tgt.nspname,
+         cls_tgt.relname;
 
 -- ---------------------------------------------------------------------------
 -- 3. Stale canonical columns must be absent; expected result is zero rows
