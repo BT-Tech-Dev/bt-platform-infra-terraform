@@ -59,6 +59,29 @@ FROM (
 ) AS deprecated(object_name)
 ORDER BY object_name;
 
+-- Expected result is zero rows. Rows here are external active-schema blockers
+-- for dropping deprecated BIM catalog tables.
+WITH deprecated_tables AS (
+    SELECT table_name::regclass AS table_oid
+    FROM (
+        VALUES
+            ('bim.deprecated_bt_element_type_catalog'),
+            ('bim.deprecated_bt_element_type_activity_template'),
+            ('bim.deprecated_bt_element_type_quality_requirement'),
+            ('bim.deprecated_bt_element_type_document_requirement')
+    ) AS deprecated(table_name)
+    WHERE to_regclass(table_name) IS NOT NULL
+)
+SELECT conrelid::regclass AS referencing_table,
+       conname AS constraint_name,
+       confrelid::regclass AS referenced_table,
+       pg_get_constraintdef(oid) AS constraint_definition
+FROM pg_constraint
+WHERE contype = 'f'
+  AND confrelid IN (SELECT table_oid FROM deprecated_tables)
+  AND conrelid NOT IN (SELECT table_oid FROM deprecated_tables)
+ORDER BY referencing_table::text, constraint_name;
+
 -- ---------------------------------------------------------------------------
 -- 3. Stale canonical columns must be absent; expected result is zero rows
 -- ---------------------------------------------------------------------------

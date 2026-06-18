@@ -71,7 +71,8 @@ present. It does not use `DROP CASCADE`.
 
 `migrate_16_drop_deprecated_bim_catalog_tables.sql` is the cleanup migration
 after a successful catalog refactor. It checks required `catalog.*` tables and
-FK dependencies, then drops:
+external FK dependencies, drops internal FK constraints among deprecated tables,
+then drops:
 
 - `bim.deprecated_bt_element_type_document_requirement`
 - `bim.deprecated_bt_element_type_quality_requirement`
