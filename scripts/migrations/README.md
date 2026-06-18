@@ -15,30 +15,55 @@ The Layer 0-4 canonical evidence model is drafted in:
 1. `migrate_12_bim_catalog_project_element_registry.sql`
 2. `migrate_13_layer3_canonical_evidence.sql`
 3. `migrate_14_progress_reconciliation_draft.sql`
+4. `migrate_15_catalog_schema_refactor.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
 sequence. `migrate_12` removes known Layer 3/4 dependants before replacing
 Layer 0/1, `migrate_13` recreates Layer 3, and `migrate_14` recreates Layer 4.
+`migrate_15` refactors the BT element type catalog out of `bim` into
+`catalog` without dropping Layer 3 or progress data.
 
 The dependency-safe bootstrap manifest is:
 
 1. `tenant`
 2. `raw`
-3. `bim`
-4. `process`
-5. `boq`
-6. `document`
-7. `production`
-8. `progress`
-9. `quality`
-10. `read` / `external`
-11. seeds
+3. `catalog`
+4. `bim`
+5. `process`
+6. `boq`
+7. `document`
+8. `production`
+9. `progress`
+10. `quality`
+11. `read` / `external`
+12. seeds
 
 The current filenames retain their historical numbers. The explicit manifests
 in `scripts/init_db.ps1`, `scripts/init_db.sh`, and
-`scripts/init_db_cloudbuild.sh` are authoritative and execute `raw` and
-`document` before their dependants.
+`scripts/init_db_cloudbuild.sh` are authoritative and execute `raw`,
+`catalog`, and `document` before their dependants.
+
+The final Layer 0 schema name is `catalog`, not `bim` and not `library`.
+`catalog` stores reusable/project-aware BT element type reference data:
+`element_type`, `element_type_property_template`,
+`element_type_activity_template`, `element_type_quality_requirement`,
+`element_type_document_requirement`, and
+`element_type_classification_mapping`. `bim` stores imported BIM model data and
+project-specific BIM baseline/registry tables. `bim.project_element_registry`
+has a cross-schema FK to `catalog.element_type`.
+
+`BIM_Element_Type_Master_Catalog_v1_0.xlsx` is a draft seed source for
+element types, property templates, activity templates, and type/activity
+mappings. It does not contain final quality requirements, final document
+requirements, IFC mappings, or Uniclass mappings. Do not create fake
+quality/document/IFC/Uniclass rows in schema migrations.
+
+`migrate_15_catalog_schema_refactor.sql` creates `catalog`, copies any existing
+rows from `bim.bt_element_type_*` tables, updates the element-type FKs in
+`bim.project_element_registry` and `progress.progress_derivation_rule`, and
+renames old BIM catalog tables to `bim.deprecated_bt_element_type_*` when
+present. It does not use `DROP CASCADE`.
 
 `production.prefab_manufactured_element` and
 `quality.prefab_compression_test_result` are dropped by the clean Layer 3 draft.

@@ -59,6 +59,11 @@ Run the three migration files **one at a time**, in this exact order:
 2. `migrate_13_layer3_canonical_evidence.sql`
 3. `migrate_14_progress_reconciliation_draft.sql`
 
+The updated `migrate_12` creates Layer 0 in `catalog`, not `bim`. If the
+database already has the earlier clean schema with `bim.bt_element_type_*`
+tables, run `migrate_15_catalog_schema_refactor.sql` after migration 14, or run
+it standalone after confirming migrations 12-14 were already applied.
+
 Each migration contains its own `BEGIN` and `COMMIT`. Run the complete contents
 of one file in a single Cloud SQL Studio execution. Confirm success before
 pasting and running the next file.
@@ -119,4 +124,3 @@ an intentionally incomplete transition. Keep writers stopped and choose one:
    recovery procedure.
 
 Do not attempt to roll back by rerunning historical migrations 10 or 11.
-

@@ -69,6 +69,7 @@ SQL_FILES=(
   "01_schemas_extensions.sql"
   "02_schema_tenant.sql"
   "14_schema_raw.sql"
+  "02b_schema_catalog.sql"
   "03_schema_bim.sql"
   "04_schema_process.sql"
   "05_schema_boq.sql"

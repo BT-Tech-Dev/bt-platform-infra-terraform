@@ -124,6 +124,7 @@ Write-Host "-> Esecuzione script SQL..." -ForegroundColor Cyan
 Invoke-SqlFile "$SQL_DIR\01_schemas_extensions.sql"  "Schemi + estensioni"
 Invoke-SqlFile "$SQL_DIR\02_schema_tenant.sql"        "Schema tenant (master)"
 Invoke-SqlFile "$SQL_DIR\14_schema_raw.sql"           "Schema raw (MS-05 ingestion)"
+Invoke-SqlFile "$SQL_DIR\02b_schema_catalog.sql"      "Schema catalog (Layer 0 reference data)"
 Invoke-SqlFile "$SQL_DIR\03_schema_bim.sql"           "Schema bim"
 Invoke-SqlFile "$SQL_DIR\04_schema_process.sql"       "Schema process"
 Invoke-SqlFile "$SQL_DIR\05_schema_boq.sql"           "Schema boq"

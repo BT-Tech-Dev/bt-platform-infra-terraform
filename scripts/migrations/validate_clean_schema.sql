@@ -11,10 +11,12 @@ FROM (
         ('tenant.project'),
         ('raw.import_file'),
         ('raw.ingestion_run'),
-        ('bim.bt_element_type_catalog'),
-        ('bim.bt_element_type_activity_template'),
-        ('bim.bt_element_type_quality_requirement'),
-        ('bim.bt_element_type_document_requirement'),
+        ('catalog.element_type'),
+        ('catalog.element_type_property_template'),
+        ('catalog.element_type_activity_template'),
+        ('catalog.element_type_quality_requirement'),
+        ('catalog.element_type_document_requirement'),
+        ('catalog.element_type_classification_mapping'),
         ('bim.project_element_registry'),
         ('bim.project_element_identifier'),
         ('document.document_ref'),
@@ -27,6 +29,11 @@ FROM (
 ) AS expected(object_name)
 ORDER BY object_name;
 
+SELECT schema_name, schema_name IS NOT NULL AS exists
+FROM information_schema.schemata
+WHERE schema_name IN ('catalog', 'bim')
+ORDER BY schema_name;
+
 -- ---------------------------------------------------------------------------
 -- 2. Legacy tables must be absent
 -- ---------------------------------------------------------------------------
@@ -34,8 +41,22 @@ SELECT object_name, to_regclass(object_name) IS NULL AS is_absent
 FROM (
     VALUES
         ('production.prefab_manufactured_element'),
-        ('quality.prefab_compression_test_result')
+        ('quality.prefab_compression_test_result'),
+        ('bim.bt_element_type_catalog'),
+        ('bim.bt_element_type_activity_template'),
+        ('bim.bt_element_type_quality_requirement'),
+        ('bim.bt_element_type_document_requirement')
 ) AS legacy(object_name)
+ORDER BY object_name;
+
+SELECT object_name, to_regclass(object_name) IS NOT NULL AS exists
+FROM (
+    VALUES
+        ('bim.deprecated_bt_element_type_catalog'),
+        ('bim.deprecated_bt_element_type_activity_template'),
+        ('bim.deprecated_bt_element_type_quality_requirement'),
+        ('bim.deprecated_bt_element_type_document_requirement')
+) AS deprecated(object_name)
 ORDER BY object_name;
 
 -- ---------------------------------------------------------------------------
@@ -90,7 +111,11 @@ FROM (
         ('uq_production_record_source_row'),
         ('uq_quality_test_result_source_row'),
         ('uq_evidence_link_effective'),
-        ('uq_evidence_link_current_unresolved')
+        ('uq_evidence_link_current_unresolved'),
+        ('uq_catalog_element_type_global_code_version'),
+        ('uq_catalog_element_type_project_code_version'),
+        ('uq_catalog_classification_mapping_global'),
+        ('uq_catalog_classification_mapping_project')
 ) AS expected(index_name)
 LEFT JOIN pg_indexes AS actual
   ON actual.indexname = expected.index_name
@@ -113,6 +138,42 @@ WHERE conrelid IN (
 ORDER BY conrelid::regclass::text;
 
 -- ---------------------------------------------------------------------------
+-- 6b. Cross-schema FK target for BIM registry and progress rules
+-- ---------------------------------------------------------------------------
+SELECT conrelid::regclass AS table_name,
+       conname,
+       confrelid::regclass AS referenced_table,
+       pg_get_constraintdef(oid) AS foreign_key_definition
+FROM pg_constraint
+WHERE conrelid IN (
+    'bim.project_element_registry'::regclass,
+    'progress.progress_derivation_rule'::regclass
+)
+  AND contype = 'f'
+  AND conkey = ARRAY[
+      (
+          SELECT attnum
+          FROM pg_attribute
+          WHERE attrelid = conrelid
+            AND attname = 'element_type_id'
+      )::smallint
+  ]
+ORDER BY table_name::text, conname;
+
+-- ---------------------------------------------------------------------------
+-- 6c. Layer 3 and progress data-bearing tables remain present
+-- ---------------------------------------------------------------------------
+SELECT object_name, to_regclass(object_name) IS NOT NULL AS exists
+FROM (
+    VALUES
+        ('production.production_record'),
+        ('quality.quality_test_result'),
+        ('document.document_ref'),
+        ('progress.evidence_link')
+) AS data_tables(object_name)
+ORDER BY object_name;
+
+-- ---------------------------------------------------------------------------
 -- 7. Effective evidence integrity; expected count is zero
 -- ---------------------------------------------------------------------------
 SELECT COUNT(*) AS invalid_effective_links
@@ -132,4 +193,3 @@ FROM (
     GROUP BY tenant_id, project_code, evidence_kind, evidence_id
     HAVING COUNT(*) > 1
 ) AS duplicates;
-

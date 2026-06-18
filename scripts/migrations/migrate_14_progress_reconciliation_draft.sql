@@ -53,7 +53,7 @@ CREATE TABLE progress.progress_derivation_rule (
     progress_derivation_rule_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID REFERENCES tenant.company(id),
     project_code VARCHAR(50),
-    element_type_id UUID REFERENCES bim.bt_element_type_catalog(element_type_id),
+    element_type_id UUID REFERENCES catalog.element_type(element_type_id),
     activity_code VARCHAR(100) NOT NULL,
     rule_name VARCHAR(200) NOT NULL,
     evidence_kind VARCHAR(30) NOT NULL,

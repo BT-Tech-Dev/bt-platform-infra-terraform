@@ -1,6 +1,6 @@
 -- =============================================================================
 -- 01_schemas_extensions.sql
--- Crea i 10 schemi PostgreSQL e abilita le estensioni necessarie
+-- Crea gli schemi PostgreSQL e abilita le estensioni necessarie
 --
 -- Eseguire come utente postgres (superuser) sul database db_bt_platform
 -- Ordine: questo script va eseguito PRIMA di tutti gli altri
@@ -20,7 +20,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";  -- Alternativa per uuid_generate_v4
 
 -- Schema 1: dati geometrici BIM (da Revit via plugin Orienta Trium)
 CREATE SCHEMA IF NOT EXISTS bim;
-COMMENT ON SCHEMA bim IS 'Dati geometrici BIM: modelli, elementi IFC, quantità geometriche';
+COMMENT ON SCHEMA bim IS 'Imported BIM model data and project-specific BIM baseline/registry';
+
+CREATE SCHEMA IF NOT EXISTS catalog;
+COMMENT ON SCHEMA catalog IS 'Reusable/project-aware BT element type reference catalog independent from BIM imports';
 
 -- Schema 2: processo costruttivo (fasi, lavorazioni, regole di misura)
 CREATE SCHEMA IF NOT EXISTS process;
@@ -65,24 +68,24 @@ COMMENT ON SCHEMA external IS 'Integrazioni esterne: log sync, dati da Procore/A
 -- =============================================================================
 
 -- bt_app: accesso completo agli schemi applicativi
-GRANT USAGE ON SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+GRANT USAGE ON SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   TO bt_app;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   TO bt_app;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   TO bt_app;
 
 -- Imposta il default per le tabelle future (CREATE TABLE eseguiti dopo questo script)
-ALTER DEFAULT PRIVILEGES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+ALTER DEFAULT PRIVILEGES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   GRANT ALL PRIVILEGES ON TABLES TO bt_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+ALTER DEFAULT PRIVILEGES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   GRANT ALL PRIVILEGES ON SEQUENCES TO bt_app;
 
 -- bt_readonly: solo SELECT su tutti gli schemi
-GRANT USAGE ON SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+GRANT USAGE ON SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   TO bt_readonly;
-GRANT SELECT ON ALL TABLES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+GRANT SELECT ON ALL TABLES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   TO bt_readonly;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA bim, process, boq, production, progress, quality, tenant, document, read, external
+ALTER DEFAULT PRIVILEGES IN SCHEMA bim, catalog, process, boq, production, progress, quality, tenant, document, read, external
   GRANT SELECT ON TABLES TO bt_readonly;
