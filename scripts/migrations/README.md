@@ -16,6 +16,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 2. `migrate_13_layer3_canonical_evidence.sql`
 3. `migrate_14_progress_reconciliation_draft.sql`
 4. `migrate_15_catalog_schema_refactor.sql`
+5. `migrate_16_drop_deprecated_bim_catalog_tables.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -23,6 +24,9 @@ sequence. `migrate_12` removes known Layer 3/4 dependants before replacing
 Layer 0/1, `migrate_13` recreates Layer 3, and `migrate_14` recreates Layer 4.
 `migrate_15` refactors the BT element type catalog out of `bim` into
 `catalog` without dropping Layer 3 or progress data.
+`migrate_16` drops only the deprecated BIM catalog tables after validating
+that the catalog tables exist and no FK dependencies still reference the
+deprecated tables.
 
 The dependency-safe bootstrap manifest is:
 
@@ -64,6 +68,19 @@ rows from `bim.bt_element_type_*` tables, updates the element-type FKs in
 `bim.project_element_registry` and `progress.progress_derivation_rule`, and
 renames old BIM catalog tables to `bim.deprecated_bt_element_type_*` when
 present. It does not use `DROP CASCADE`.
+
+`migrate_16_drop_deprecated_bim_catalog_tables.sql` is the cleanup migration
+after a successful catalog refactor. It checks required `catalog.*` tables and
+FK dependencies, then drops:
+
+- `bim.deprecated_bt_element_type_document_requirement`
+- `bim.deprecated_bt_element_type_quality_requirement`
+- `bim.deprecated_bt_element_type_activity_template`
+- `bim.deprecated_bt_element_type_catalog`
+
+It does not use `DROP CASCADE` and does not touch
+`production.production_record`, `quality.quality_test_result`, or
+`progress.evidence_link`.
 
 `production.prefab_manufactured_element` and
 `quality.prefab_compression_test_result` are dropped by the clean Layer 3 draft.

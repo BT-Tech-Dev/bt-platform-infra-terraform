@@ -63,6 +63,9 @@ The updated `migrate_12` creates Layer 0 in `catalog`, not `bim`. If the
 database already has the earlier clean schema with `bim.bt_element_type_*`
 tables, run `migrate_15_catalog_schema_refactor.sql` after migration 14, or run
 it standalone after confirming migrations 12-14 were already applied.
+After migration 15 validates successfully, run
+`migrate_16_drop_deprecated_bim_catalog_tables.sql` to remove the deprecated
+`bim.deprecated_bt_element_type_*` tables.
 
 Each migration contains its own `BEGIN` and `COMMIT`. Run the complete contents
 of one file in a single Cloud SQL Studio execution. Confirm success before
@@ -81,6 +84,8 @@ Do not run migrations 13 or 14 if the preceding migration reports an error.
 - [ ] Migration 12 completed successfully
 - [ ] Migration 13 completed successfully
 - [ ] Migration 14 completed successfully
+- [ ] Migration 15 completed successfully, if required for an existing clean DB
+- [ ] Migration 16 completed successfully, if dropping deprecated BIM catalog tables
 - [ ] No unexpected errors or disconnects occurred
 - [ ] Start and completion timestamps recorded
 
@@ -97,6 +102,9 @@ Expected results:
 - Stale-column query returns zero rows.
 - Required evidence-link columns report the expected nullability.
 - Required status check and unique indexes are present.
+- Deprecated BIM catalog tables report absent.
+- `production.production_record`, `quality.quality_test_result`, and
+  `progress.evidence_link` row counts match the pre-cleanup counts.
 - Invalid effective-link count is zero.
 
 ## Reload and restart

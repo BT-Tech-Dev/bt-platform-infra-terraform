@@ -1,4 +1,4 @@
--- READ-ONLY VALIDATION. Safe to run after migrations 12, 13, and 14.
+-- READ-ONLY VALIDATION. Safe to run after reviewed clean catalog migrations.
 -- This file does not create, alter, truncate, or drop database objects.
 
 -- ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ FROM (
 ) AS legacy(object_name)
 ORDER BY object_name;
 
-SELECT object_name, to_regclass(object_name) IS NOT NULL AS exists
+SELECT object_name, to_regclass(object_name) IS NULL AS is_absent
 FROM (
     VALUES
         ('bim.deprecated_bt_element_type_catalog'),
@@ -172,6 +172,18 @@ FROM (
         ('progress.evidence_link')
 ) AS data_tables(object_name)
 ORDER BY object_name;
+
+-- Capture these counts before and after cleanup migrations. They should not
+-- change when applying migrate_15 or migrate_16.
+SELECT 'production.production_record' AS table_name, COUNT(*) AS row_count
+FROM production.production_record
+UNION ALL
+SELECT 'quality.quality_test_result' AS table_name, COUNT(*) AS row_count
+FROM quality.quality_test_result
+UNION ALL
+SELECT 'progress.evidence_link' AS table_name, COUNT(*) AS row_count
+FROM progress.evidence_link
+ORDER BY table_name;
 
 -- ---------------------------------------------------------------------------
 -- 7. Effective evidence integrity; expected count is zero
