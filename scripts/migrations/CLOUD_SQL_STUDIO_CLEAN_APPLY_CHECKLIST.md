@@ -66,6 +66,11 @@ it standalone after confirming migrations 12-14 were already applied.
 After migration 15 validates successfully, run
 `migrate_16_drop_deprecated_bim_catalog_tables.sql` to remove the deprecated
 `bim.deprecated_bt_element_type_*` tables.
+Then run `migrate_17_catalog_definition_applicability_refactor.sql` to prepare
+the normalized matrix-first catalog schema before importing
+`BT_Element_Catalog_Master.xlsx`. Migration 17 backfills from old catalog
+template tables when present, then drops those obsolete template tables without
+using `DROP CASCADE`.
 
 Each migration contains its own `BEGIN` and `COMMIT`. Run the complete contents
 of one file in a single Cloud SQL Studio execution. Confirm success before
@@ -86,6 +91,7 @@ Do not run migrations 13 or 14 if the preceding migration reports an error.
 - [ ] Migration 14 completed successfully
 - [ ] Migration 15 completed successfully, if required for an existing clean DB
 - [ ] Migration 16 completed successfully, if dropping deprecated BIM catalog tables
+- [ ] Migration 17 completed successfully, if preparing the matrix-first catalog schema
 - [ ] No unexpected errors or disconnects occurred
 - [ ] Start and completion timestamps recorded
 

@@ -17,6 +17,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 3. `migrate_14_progress_reconciliation_draft.sql`
 4. `migrate_15_catalog_schema_refactor.sql`
 5. `migrate_16_drop_deprecated_bim_catalog_tables.sql`
+6. `migrate_17_catalog_definition_applicability_refactor.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -27,6 +28,8 @@ Layer 0/1, `migrate_13` recreates Layer 3, and `migrate_14` recreates Layer 4.
 `migrate_16` drops only the deprecated BIM catalog tables after validating
 that the catalog tables exist and no FK dependencies still reference the
 deprecated tables.
+`migrate_17` refactors the catalog from long element-type template tables to a
+matrix-first normalized definition/applicability model.
 
 The dependency-safe bootstrap manifest is:
 
@@ -50,18 +53,21 @@ in `scripts/init_db.ps1`, `scripts/init_db.sh`, and
 
 The final Layer 0 schema name is `catalog`, not `bim` and not `library`.
 `catalog` stores reusable/project-aware BT element type reference data:
-`element_type`, `element_type_property_template`,
-`element_type_activity_template`, `element_type_quality_requirement`,
-`element_type_document_requirement`, and
+`element_type`, `property_definition`,
+`element_type_property_applicability`, `activity_definition`,
+`element_type_activity_applicability`, `quality_requirement_definition`,
+`element_type_quality_applicability`, `document_requirement_definition`,
+`element_type_document_applicability`, and
 `element_type_classification_mapping`. `bim` stores imported BIM model data and
 project-specific BIM baseline/registry tables. `bim.project_element_registry`
 has a cross-schema FK to `catalog.element_type`.
 
-`BIM_Element_Type_Master_Catalog_v1_0.xlsx` is a draft seed source for
-element types, property templates, activity templates, and type/activity
-mappings. It does not contain final quality requirements, final document
-requirements, IFC mappings, or Uniclass mappings. Do not create fake
-quality/document/IFC/Uniclass rows in schema migrations.
+`BT_Element_Catalog_Master.xlsx` is matrix-first for human editing. Excel
+definition sheets map to `*_definition` tables, matrix sheets map to
+`element_type_*_applicability` tables, and `06_Classification_Table` maps to
+`catalog.element_type_classification_mapping`. `source_sheet`, `source_row`,
+helper notes, and reviewer notes are import/staging metadata and are not DB
+domain fields in the normalized catalog schema.
 
 `migrate_15_catalog_schema_refactor.sql` creates `catalog`, copies any existing
 rows from `bim.bt_element_type_*` tables, updates the element-type FKs in
@@ -82,6 +88,19 @@ then drops:
 It does not use `DROP CASCADE` and does not touch
 `production.production_record`, `quality.quality_test_result`, or
 `progress.evidence_link`.
+
+`migrate_17_catalog_definition_applicability_refactor.sql` creates the
+definition/applicability tables, backfills them from existing
+`catalog.element_type_*` template tables when present, checks for external FK
+dependencies, and then drops the obsolete template tables explicitly:
+
+- `catalog.element_type_document_requirement`
+- `catalog.element_type_quality_requirement`
+- `catalog.element_type_activity_template`
+- `catalog.element_type_property_template`
+
+It does not use `DROP CASCADE`, does not seed from Excel, and does not touch
+Layer 1, Layer 3, or progress data.
 
 `production.prefab_manufactured_element` and
 `quality.prefab_compression_test_result` are dropped by the clean Layer 3 draft.

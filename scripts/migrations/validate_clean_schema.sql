@@ -12,10 +12,14 @@ FROM (
         ('raw.import_file'),
         ('raw.ingestion_run'),
         ('catalog.element_type'),
-        ('catalog.element_type_property_template'),
-        ('catalog.element_type_activity_template'),
-        ('catalog.element_type_quality_requirement'),
-        ('catalog.element_type_document_requirement'),
+        ('catalog.property_definition'),
+        ('catalog.element_type_property_applicability'),
+        ('catalog.activity_definition'),
+        ('catalog.element_type_activity_applicability'),
+        ('catalog.quality_requirement_definition'),
+        ('catalog.element_type_quality_applicability'),
+        ('catalog.document_requirement_definition'),
+        ('catalog.element_type_document_applicability'),
         ('catalog.element_type_classification_mapping'),
         ('bim.project_element_registry'),
         ('bim.project_element_identifier'),
@@ -45,7 +49,11 @@ FROM (
         ('bim.bt_element_type_catalog'),
         ('bim.bt_element_type_activity_template'),
         ('bim.bt_element_type_quality_requirement'),
-        ('bim.bt_element_type_document_requirement')
+        ('bim.bt_element_type_document_requirement'),
+        ('catalog.element_type_property_template'),
+        ('catalog.element_type_activity_template'),
+        ('catalog.element_type_quality_requirement'),
+        ('catalog.element_type_document_requirement')
 ) AS legacy(validation_target)
 ORDER BY 1;
 
@@ -151,6 +159,14 @@ FROM (
         ('uq_evidence_link_current_unresolved'),
         ('uq_catalog_element_type_global_code_version'),
         ('uq_catalog_element_type_project_code_version'),
+        ('uq_catalog_property_definition_global'),
+        ('uq_catalog_property_applicability_global'),
+        ('uq_catalog_activity_definition_global'),
+        ('uq_catalog_activity_applicability_global'),
+        ('uq_catalog_quality_definition_global'),
+        ('uq_catalog_quality_applicability_global'),
+        ('uq_catalog_document_definition_global'),
+        ('uq_catalog_document_applicability_global'),
         ('uq_catalog_classification_mapping_global'),
         ('uq_catalog_classification_mapping_project')
 ) AS expected(index_name)
