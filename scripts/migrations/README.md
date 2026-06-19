@@ -19,6 +19,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 5. `migrate_16_drop_deprecated_bim_catalog_tables.sql`
 6. `migrate_17_catalog_definition_applicability_refactor.sql`
 7. `migrate_18_seed_catalog_from_workbook.sql`
+8. `migrate_19_project_element_registry_hardening.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -36,6 +37,10 @@ matrix-first normalized definition/applicability model.
 catalog-only, uses temporary seed tables inside a single transaction, and does
 not touch BIM Layer 1, production, quality result, progress, reconciliation, or
 SAL tables.
+`migrate_19` is a narrow additive BIM Layer 1 registry hardening draft for
+MS-01. It adds registry origin flags to `bim.project_element_registry` only and
+does not touch Layer 0 catalog data, BIM source elements, production, quality,
+progress, reconciliation, or SAL tables.
 
 The dependency-safe bootstrap manifest is:
 
