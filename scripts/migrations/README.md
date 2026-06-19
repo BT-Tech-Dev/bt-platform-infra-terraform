@@ -20,6 +20,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 6. `migrate_17_catalog_definition_applicability_refactor.sql`
 7. `migrate_18_seed_catalog_from_workbook.sql`
 8. `migrate_19_project_element_registry_hardening.sql`
+9. `migrate_20_grant_catalog_read_to_app.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -41,6 +42,10 @@ SAL tables.
 MS-01. It adds registry origin flags to `bim.project_element_registry` only and
 does not touch Layer 0 catalog data, BIM source elements, production, quality,
 progress, reconciliation, or SAL tables.
+`migrate_20` grants read-only `bt_app` access to the Layer 0 `catalog` schema
+and tables so application services can resolve element type codes and validate
+classifier configuration. It is grants-only and does not change catalog data or
+any BIM, production, quality, progress, reconciliation, or SAL tables.
 
 The dependency-safe bootstrap manifest is:
 
