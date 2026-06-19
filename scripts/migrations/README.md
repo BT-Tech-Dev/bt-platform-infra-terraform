@@ -18,6 +18,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 4. `migrate_15_catalog_schema_refactor.sql`
 5. `migrate_16_drop_deprecated_bim_catalog_tables.sql`
 6. `migrate_17_catalog_definition_applicability_refactor.sql`
+7. `migrate_18_seed_catalog_from_workbook.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -30,6 +31,11 @@ that the catalog tables exist and no FK dependencies still reference the
 deprecated tables.
 `migrate_17` refactors the catalog from long element-type template tables to a
 matrix-first normalized definition/applicability model.
+`migrate_18` seeds the Layer 0 catalog from the reviewed
+`BT_Element_Catalog_Master_migrate_18_source.xlsx` workbook snapshot. It is
+catalog-only, uses temporary seed tables inside a single transaction, and does
+not touch BIM Layer 1, production, quality result, progress, reconciliation, or
+SAL tables.
 
 The dependency-safe bootstrap manifest is:
 
