@@ -21,6 +21,7 @@ The Layer 0-4 canonical evidence model is drafted in:
 7. `migrate_18_seed_catalog_from_workbook.sql`
 8. `migrate_19_project_element_registry_hardening.sql`
 9. `migrate_20_grant_catalog_read_to_app.sql`
+10. `migrate_21_ocr_pilot_extraction_tables.sql`
 
 These files are drafts for manual review. They have not been executed.
 They form one destructive transition and must be reviewed/run as a contiguous
@@ -46,6 +47,10 @@ progress, reconciliation, or SAL tables.
 and tables so application services can resolve element type codes and validate
 classifier configuration. It is grants-only and does not change catalog data or
 any BIM, production, quality, progress, reconciliation, or SAL tables.
+`migrate_21` adds the minimal OCR pilot tables in the `document` schema:
+`document.extraction_run` and `document.extraction_candidate`. It is additive
+and does not create normalized OCR output, review UI, document segment, or
+field-level extraction tables.
 
 The dependency-safe bootstrap manifest is:
 
