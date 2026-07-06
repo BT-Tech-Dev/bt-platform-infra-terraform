@@ -200,6 +200,12 @@ resource "google_service_account_iam_member" "cloud_tasks_oidc_token_creator" {
   member             = "serviceAccount:${local.cloud_tasks_service_agent}"
 }
 
+resource "google_service_account_iam_member" "parser_ocr_tasks_oidc_sa_user" {
+  service_account_id = google_service_account.ocr_tasks_oidc.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.parser.email}"
+}
+
 # ─── Compute Engine default SA: permessi Cloud Build ─────────────────────────
 # Dal 2024, Cloud Build usa il Compute Engine default SA per eseguire i job.
 # Senza questi ruoli, "gcloud builds submit" fallisce con errore 403 storage.
