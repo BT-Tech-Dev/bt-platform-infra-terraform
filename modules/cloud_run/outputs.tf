@@ -27,3 +27,13 @@ output "production_ingestion_service_url" {
   description = "URL HTTPS del servizio Cloud Run production-ingestion-service"
   value       = google_cloud_run_v2_service.production_ingestion_service.uri
 }
+
+output "production_ingestion_ocr_worker_name" {
+  description = "Nome del servizio Cloud Run OCR worker"
+  value       = google_cloud_run_v2_service.production_ingestion_ocr_worker.name
+}
+
+output "production_ingestion_ocr_worker_url" {
+  description = "URL HTTPS del servizio Cloud Run OCR worker"
+  value       = google_cloud_run_v2_service.production_ingestion_ocr_worker.uri
+}

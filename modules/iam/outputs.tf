@@ -18,6 +18,16 @@ output "sa_cloudbuild_email" {
   value       = google_service_account.cloudbuild.email
 }
 
+output "sa_ocr_worker_email" {
+  description = "Email service account MS-05 OCR worker"
+  value       = google_service_account.ocr_worker.email
+}
+
+output "sa_ocr_tasks_oidc_email" {
+  description = "Email service account OIDC Cloud Tasks -> OCR worker"
+  value       = google_service_account.ocr_tasks_oidc.email
+}
+
 output "gcs_service_account" {
   description = "Email del SA di sistema GCS (usato per le notifiche Pub/Sub)"
   value       = local.gcs_service_account

@@ -138,7 +138,7 @@ resource "google_secret_manager_secret" "cloudbuild_github_token" {
 # può essere disabilitata dalla Console GCP: Secret Manager → secret → Versions.
 
 resource "google_secret_manager_secret_version" "db_password_placeholder" {
-  secret      = google_secret_manager_secret.db_password.id
+  secret = google_secret_manager_secret.db_password.id
   # Valore placeholder — NON è la password reale.
   # Sostituire immediatamente con: gcloud secrets versions add ...
   secret_data = "PLACEHOLDER_CHANGE_ME_IMMEDIATELY"
@@ -189,4 +189,11 @@ resource "google_secret_manager_secret_iam_member" "etl_db_password_ro" {
   secret_id = google_secret_manager_secret.db_password_ro.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.sa_etl_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "ocr_worker_db_password" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.db_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.sa_ocr_worker_email}"
 }

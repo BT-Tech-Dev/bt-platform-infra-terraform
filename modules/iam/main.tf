@@ -51,6 +51,39 @@ resource "google_project_iam_member" "parser_pubsub_publisher" {
   member  = "serviceAccount:${google_service_account.parser.email}"
 }
 
+# ─── Service Account: OCR worker runtime ─────────────────────────────────────
+# Runtime privato del worker OCR. Ha accesso a Cloud SQL, GCS artifact/source e
+# Vertex AI, ma non può accodare task.
+
+resource "google_service_account" "ocr_worker" {
+  account_id   = "sa-bt-ocr-worker-${var.environment}"
+  display_name = "BT MS-05 OCR Worker"
+  description  = "Runtime Cloud Run OCR worker: esegue estrazioni Vertex AI e persiste risultati OCR"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "ocr_worker_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.ocr_worker.email}"
+}
+
+resource "google_project_iam_member" "ocr_worker_vertex_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.ocr_worker.email}"
+}
+
+# ─── Service Account: Cloud Tasks OIDC caller ────────────────────────────────
+# Identità usata solo come OIDC token subject per invocare il worker OCR.
+
+resource "google_service_account" "ocr_tasks_oidc" {
+  account_id   = "sa-bt-ocr-tasks-${var.environment}"
+  display_name = "BT MS-05 OCR Cloud Tasks OIDC"
+  description  = "OIDC caller identity for Cloud Tasks -> OCR worker"
+  project      = var.project_id
+}
+
 # ─── Service Account: ETL ────────────────────────────────────────────────────
 # Usato per i job ETL batch (es. import dati Grigolin, import BOQ)
 
@@ -88,13 +121,6 @@ resource "google_service_account" "eventarc" {
   display_name = "BT EventArc — Trigger GCS→Pub/Sub→CloudRun"
   description  = "Usato dai trigger EventArc per invocare Cloud Run e pubblicare su Pub/Sub"
   project      = var.project_id
-}
-
-# Permesso per invocare servizi Cloud Run (es. bim-parser-v1)
-resource "google_project_iam_member" "eventarc_run_invoker" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.eventarc.email}"
 }
 
 # Permesso EventArc per ricevere eventi
@@ -162,9 +188,16 @@ data "google_project" "current" {
 }
 
 locals {
-  gcs_service_account = "service-${data.google_project.current.number}@gs-project-accounts.iam.gserviceaccount.com"
+  gcs_service_account       = "service-${data.google_project.current.number}@gs-project-accounts.iam.gserviceaccount.com"
+  cloud_tasks_service_agent = "service-${data.google_project.current.number}@gcp-sa-cloudtasks.iam.gserviceaccount.com"
   # Dal 2024, GCP usa il Compute Engine default SA per i nuovi progetti (non il vecchio cloudbuild SA)
-  compute_default_sa  = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+  compute_default_sa = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_service_account_iam_member" "cloud_tasks_oidc_token_creator" {
+  service_account_id = google_service_account.ocr_tasks_oidc.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${local.cloud_tasks_service_agent}"
 }
 
 # ─── Compute Engine default SA: permessi Cloud Build ─────────────────────────

@@ -15,7 +15,8 @@
 
 locals {
   # Prefisso comune per tutti i bucket del progetto
-  bucket_prefix = "bt-platform"
+  bucket_prefix                  = "bt-platform"
+  ocr_raw_response_object_prefix = trim(var.ocr_raw_response_object_prefix, "/")
 }
 
 # ─── Bucket: Staging ─────────────────────────────────────────────────────────
@@ -42,11 +43,11 @@ resource "google_storage_bucket" "staging" {
   # Regole di retention automatica per evitare accumulo di file
   lifecycle_rule {
     condition {
-      age            = 30   # giorni
+      age            = 30 # giorni
       matches_prefix = ["rejected/"]
     }
     action {
-      type = "Delete"  # Cancella i file respinti dopo 30 giorni
+      type = "Delete" # Cancella i file respinti dopo 30 giorni
     }
   }
 
@@ -57,7 +58,7 @@ resource "google_storage_bucket" "staging" {
     }
     action {
       type          = "SetStorageClass"
-      storage_class = "NEARLINE"  # Tier più economico per archivio storico
+      storage_class = "NEARLINE" # Tier più economico per archivio storico
     }
   }
 
@@ -88,7 +89,7 @@ resource "google_storage_bucket" "ingest" {
   force_destroy = false
 
   versioning {
-    enabled = false  # No versioning su ingest: i file sono transitori
+    enabled = false # No versioning su ingest: i file sono transitori
   }
 
   # Pulisce i file di errore dopo 60 giorni
@@ -141,12 +142,12 @@ resource "google_storage_bucket" "handoff" {
 
   lifecycle_rule {
     condition {
-      age            = 180  # 6 mesi per l'audit
+      age            = 180 # 6 mesi per l'audit
       matches_prefix = ["audit/"]
     }
     action {
       type          = "SetStorageClass"
-      storage_class = "COLDLINE"  # Archivio a lungo termine, accesso raro
+      storage_class = "COLDLINE" # Archivio a lungo termine, accesso raro
     }
   }
 
@@ -192,6 +193,24 @@ resource "google_storage_bucket_iam_member" "etl_handoff" {
   bucket = google_storage_bucket.handoff.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${var.sa_etl_email}"
+}
+
+resource "google_storage_bucket_iam_member" "ocr_worker_staging_reader" {
+  bucket = google_storage_bucket.staging.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.sa_ocr_worker_email}"
+}
+
+resource "google_storage_bucket_iam_member" "ocr_worker_handoff_raw_response_user" {
+  bucket = google_storage_bucket.handoff.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${var.sa_ocr_worker_email}"
+
+  condition {
+    title       = "OcrRawResponsePrefixOnly"
+    description = "Allow OCR worker writes/metadata updates only under the raw OCR response prefix."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.handoff.name}/objects/${local.ocr_raw_response_object_prefix}/\")"
+  }
 }
 
 # ─── GCS SA: email del service account di sistema GCS ────────────────────────

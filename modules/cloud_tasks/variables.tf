@@ -1,0 +1,12 @@
+variable "project_id" { type = string }
+variable "environment" { type = string }
+variable "location" { type = string }
+variable "queue_name" { type = string }
+variable "max_concurrent_dispatches" { type = number }
+variable "max_dispatches_per_second" { type = number }
+variable "max_attempts" { type = number }
+variable "min_retry_backoff_seconds" { type = number }
+variable "max_retry_backoff_seconds" { type = number }
+variable "max_retry_duration_seconds" { type = number }
+variable "logging_sampling_ratio" { type = number }
+variable "ocr_ingest_service_account_email" { type = string }

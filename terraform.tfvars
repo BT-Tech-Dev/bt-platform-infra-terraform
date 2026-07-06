@@ -18,3 +18,21 @@ db_tier          = "db-g1-small"
 enable_db_init = false
 
 enable_debug_pubsub_subscriptions = false
+
+ocr_tasks_location                  = "europe-west6"
+ocr_tasks_queue_name                = "bt-platform-ocr-extraction-prod"
+ocr_tasks_max_concurrent_dispatches = 1
+ocr_tasks_max_dispatches_per_second = 0.05
+ocr_tasks_max_attempts              = 3
+ocr_tasks_dispatch_deadline_seconds = 900
+
+ocr_worker_timeout_seconds    = 900
+ocr_worker_max_instance_count = 1
+ocr_worker_concurrency        = 1
+
+ocr_vertex_location = "europe-west8"
+ocr_vertex_model_id = "gemini-2.5-flash"
+ocr_timeout_seconds = 900
+ocr_max_retries     = 3
+ocr_schema_version  = "ocr-json-contract-v1"
+ocr_auto_profiles   = "ferroberica_steel_ddt_v1"

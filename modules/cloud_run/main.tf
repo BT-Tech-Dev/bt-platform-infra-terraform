@@ -419,6 +419,46 @@ resource "google_cloud_run_v2_service" "production_ingestion_service" {
         name  = "LOG_LEVEL"
         value = "INFO"
       }
+      env {
+        name  = "OCR_SERVICE_ROLE"
+        value = "ingest"
+      }
+      env {
+        name  = "OCR_AUTO_DISPATCH_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "OCR_INTERNAL_HANDLER_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "OCR_TASKS_PROJECT_ID"
+        value = var.ocr_tasks_project_id
+      }
+      env {
+        name  = "OCR_TASKS_LOCATION"
+        value = var.ocr_tasks_location
+      }
+      env {
+        name  = "OCR_TASKS_QUEUE"
+        value = var.ocr_tasks_queue
+      }
+      env {
+        name  = "OCR_TASKS_TARGET_URL"
+        value = "${google_cloud_run_v2_service.production_ingestion_ocr_worker.uri}/internal/ocr/extractions/{extraction_run_id}:execute"
+      }
+      env {
+        name  = "OCR_TASKS_SERVICE_ACCOUNT_EMAIL"
+        value = var.ocr_tasks_service_account_email
+      }
+      env {
+        name  = "OCR_TASKS_DISPATCH_DEADLINE_SECONDS"
+        value = tostring(var.ocr_tasks_dispatch_deadline_seconds)
+      }
+      env {
+        name  = "OCR_AUTO_PROFILES"
+        value = var.ocr_auto_profiles
+      }
 
       env {
         name = "DB_PASSWORD"
@@ -472,4 +512,171 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_production_i
   name     = google_cloud_run_v2_service.production_ingestion_service.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.sa_eventarc_email}"
+}
+
+# =============================================================================
+# Cloud Run: production-ingestion-ocr-worker (MS-05 OCR pilot)
+#
+# Private worker invoked only by Cloud Tasks with a dedicated OIDC identity.
+# It uses the same application container image family as production-ingestion-
+# service, but runs with OCR_SERVICE_ROLE=worker.
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "production_ingestion_ocr_worker" {
+  name     = "production-ingestion-ocr-worker"
+  location = var.region
+  project  = var.project_id
+
+  deletion_protection = false
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  template {
+    service_account = var.sa_ocr_worker_email
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.db_connection_name]
+      }
+    }
+
+    containers {
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "1Gi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+      env {
+        name  = "STAGING_BUCKET"
+        value = var.bucket_staging_name
+      }
+      env {
+        name  = "INSTANCE_CONNECTION_NAME"
+        value = var.db_connection_name
+      }
+      env {
+        name  = "DB_USER"
+        value = "bt_app"
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+      env {
+        name  = "DB_SCHEMA"
+        value = "document"
+      }
+      env {
+        name  = "LOG_LEVEL"
+        value = "INFO"
+      }
+      env {
+        name  = "OCR_SERVICE_ROLE"
+        value = "worker"
+      }
+      env {
+        name  = "OCR_AUTO_DISPATCH_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "OCR_INTERNAL_HANDLER_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "OCR_VERTEX_PROJECT_ID"
+        value = var.ocr_vertex_project_id
+      }
+      env {
+        name  = "OCR_VERTEX_LOCATION"
+        value = var.ocr_vertex_location
+      }
+      env {
+        name  = "OCR_VERTEX_MODEL_ID"
+        value = var.ocr_vertex_model_id
+      }
+      env {
+        name  = "OCR_TIMEOUT_SECONDS"
+        value = tostring(var.ocr_timeout_seconds)
+      }
+      env {
+        name  = "OCR_MAX_RETRIES"
+        value = tostring(var.ocr_max_retries)
+      }
+      env {
+        name  = "OCR_RAW_RESPONSE_GCS_PREFIX"
+        value = var.ocr_raw_response_gcs_prefix
+      }
+      env {
+        name  = "OCR_SCHEMA_VERSION"
+        value = var.ocr_schema_version
+      }
+
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "bt-platform-db-password-${var.environment}"
+            version = "latest"
+          }
+        }
+      }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+
+      ports {
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = var.ocr_worker_max_instance_count
+    }
+
+    timeout                          = "${var.ocr_worker_timeout_seconds}s"
+    max_instance_request_concurrency = var.ocr_worker_concurrency
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "production-ingestion-ocr-worker"
+    version     = "v1"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      client,
+      client_version,
+      scaling
+    ]
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "cloud_tasks_invoker_production_ingestion_ocr_worker" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.production_ingestion_ocr_worker.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_ocr_tasks_oidc_email}"
 }

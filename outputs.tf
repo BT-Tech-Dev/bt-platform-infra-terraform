@@ -15,7 +15,7 @@ output "db_connection_name" {
 output "db_instance_ip" {
   description = "IP pubblico dell'istanza Cloud SQL (per debug/admin locale via proxy)"
   value       = module.cloud_sql.instance_ip
-  sensitive   = true  # Nascosto nel log CI/CD per sicurezza
+  sensitive   = true # Nascosto nel log CI/CD per sicurezza
 }
 
 # ─── Storage ─────────────────────────────────────────────────────────────────
@@ -52,6 +52,16 @@ output "sa_cloudbuild_email" {
   value       = module.iam.sa_cloudbuild_email
 }
 
+output "sa_ocr_worker_email" {
+  description = "Email service account dedicato all'OCR worker"
+  value       = module.iam.sa_ocr_worker_email
+}
+
+output "sa_ocr_tasks_oidc_email" {
+  description = "Email service account OIDC usato da Cloud Tasks per invocare l'OCR worker"
+  value       = module.iam.sa_ocr_tasks_oidc_email
+}
+
 # ─── Artifact Registry ───────────────────────────────────────────────────────
 
 output "artifact_registry_url" {
@@ -71,4 +81,23 @@ output "bim_parser_url" {
 output "pubsub_topics" {
   description = "Mappa nome → ID di tutti i topic Pub/Sub creati"
   value       = module.pubsub.topic_ids
+}
+output "production_ingestion_ocr_worker_url" {
+  description = "URL del Cloud Run privato production-ingestion-ocr-worker"
+  value       = module.cloud_run.production_ingestion_ocr_worker_url
+}
+
+output "production_ingestion_ocr_worker_name" {
+  description = "Nome del Cloud Run privato production-ingestion-ocr-worker"
+  value       = module.cloud_run.production_ingestion_ocr_worker_name
+}
+
+output "ocr_extraction_queue_name" {
+  description = "Nome della queue Cloud Tasks OCR"
+  value       = module.cloud_tasks.ocr_extraction_queue_name
+}
+
+output "ocr_extraction_queue_location" {
+  description = "Location della queue Cloud Tasks OCR"
+  value       = module.cloud_tasks.ocr_extraction_queue_location
 }

@@ -70,7 +70,7 @@ resource "google_cloudbuild_trigger" "bim_parser" {
 
     # Si attiva solo su push al branch main
     push {
-      branch = "^main$"  # Regex: esattamente "main"
+      branch = "^main$" # Regex: esattamente "main"
     }
   }
 

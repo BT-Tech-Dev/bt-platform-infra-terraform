@@ -85,6 +85,137 @@ variable "enable_debug_pubsub_subscriptions" {
   default     = false
 }
 
+variable "ocr_tasks_location" {
+  description = "Regione Cloud Tasks per la queue OCR. europe-west8 non e' supportata da Cloud Tasks; default EU piu' vicino: europe-west6."
+  type        = string
+  default     = "europe-west6"
+}
+
+variable "ocr_tasks_queue_name" {
+  description = "Nome della queue Cloud Tasks per il pilot OCR MS-05."
+  type        = string
+  default     = "bt-platform-ocr-extraction-prod"
+}
+
+variable "ocr_tasks_max_concurrent_dispatches" {
+  description = "Massimo numero di task OCR dispatchati in parallelo."
+  type        = number
+  default     = 1
+}
+
+variable "ocr_tasks_max_dispatches_per_second" {
+  description = "Rate massimo OCR pilot. 0.05 = circa 1 dispatch ogni 20 secondi."
+  type        = number
+  default     = 0.05
+}
+
+variable "ocr_tasks_max_attempts" {
+  description = "Numero massimo di tentativi Cloud Tasks per task OCR."
+  type        = number
+  default     = 3
+}
+
+variable "ocr_tasks_min_retry_backoff_seconds" {
+  description = "Backoff minimo Cloud Tasks OCR, in secondi."
+  type        = number
+  default     = 10
+}
+
+variable "ocr_tasks_max_retry_backoff_seconds" {
+  description = "Backoff massimo Cloud Tasks OCR, in secondi."
+  type        = number
+  default     = 300
+}
+
+variable "ocr_tasks_max_retry_duration_seconds" {
+  description = "Durata massima retry Cloud Tasks OCR, in secondi."
+  type        = number
+  default     = 3600
+}
+
+variable "ocr_tasks_dispatch_deadline_seconds" {
+  description = "Dispatch deadline OCR Cloud Tasks. Deve essere <= 1800 e <= timeout worker."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.ocr_tasks_dispatch_deadline_seconds >= 1 && var.ocr_tasks_dispatch_deadline_seconds <= 1800
+    error_message = "ocr_tasks_dispatch_deadline_seconds deve essere tra 1 e 1800."
+  }
+}
+
+variable "ocr_tasks_logging_sampling_ratio" {
+  description = "Sampling ratio dei log Cloud Tasks OCR."
+  type        = number
+  default     = 1.0
+}
+
+variable "ocr_worker_timeout_seconds" {
+  description = "Timeout request Cloud Run OCR worker, in secondi."
+  type        = number
+  default     = 900
+}
+
+variable "ocr_worker_max_instance_count" {
+  description = "Max istanze OCR worker per pilot."
+  type        = number
+  default     = 1
+}
+
+variable "ocr_worker_concurrency" {
+  description = "Concorrenza OCR worker per pilot."
+  type        = number
+  default     = 1
+}
+
+variable "ocr_vertex_project_id" {
+  description = "Project Vertex AI OCR. Vuoto = usa project_id."
+  type        = string
+  default     = ""
+}
+
+variable "ocr_vertex_location" {
+  description = "Location Vertex AI per OCR Gemini."
+  type        = string
+  default     = "europe-west8"
+}
+
+variable "ocr_vertex_model_id" {
+  description = "Model ID Vertex Gemini per OCR pilot."
+  type        = string
+  default     = "gemini-2.5-flash"
+}
+
+variable "ocr_timeout_seconds" {
+  description = "Timeout applicativo OCR provider, in secondi."
+  type        = number
+  default     = 900
+}
+
+variable "ocr_max_retries" {
+  description = "Retry applicativi OCR provider."
+  type        = number
+  default     = 3
+}
+
+variable "ocr_raw_response_object_prefix" {
+  description = "Prefix GCS nel bucket handoff per raw provider responses OCR."
+  type        = string
+  default     = "ocr/raw-responses/"
+}
+
+variable "ocr_schema_version" {
+  description = "Versione schema OCR JSON attesa dall'applicazione."
+  type        = string
+  default     = "ocr-json-contract-v1"
+}
+
+variable "ocr_auto_profiles" {
+  description = "Profili OCR auto-dispatch abilitabili quando OCR_AUTO_DISPATCH_ENABLED diventa true."
+  type        = string
+  default     = "ferroberica_steel_ddt_v1"
+}
+
 variable "initial_tenants" {
   description = <<-EOT
     Lista dei tenant iniziali da inserire nel seed del database.

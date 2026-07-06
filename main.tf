@@ -51,6 +51,18 @@ resource "google_project_service" "apis" {
   disable_dependent_services = false
 }
 
+resource "google_project_service" "ocr_apis" {
+  for_each = toset([
+    "cloudtasks.googleapis.com", # Cloud Tasks (OCR async execution)
+    "aiplatform.googleapis.com", # Vertex AI (Gemini OCR pilot)
+  ])
+
+  project                    = var.project_id
+  service                    = each.value
+  disable_on_destroy         = false
+  disable_dependent_services = false
+}
+
 # ─── Modulo IAM ──────────────────────────────────────────────────────────────
 # Crea i service account e assegna i ruoli IAM.
 # Va per primo: gli altri moduli hanno bisogno degli email dei service account.
@@ -75,13 +87,15 @@ module "storage" {
   region      = var.region
   environment = var.environment
 
-  sa_etl_email    = module.iam.sa_etl_email
-  sa_parser_email = module.iam.sa_parser_email
+  sa_etl_email                   = module.iam.sa_etl_email
+  sa_parser_email                = module.iam.sa_parser_email
+  sa_ocr_worker_email            = module.iam.sa_ocr_worker_email
+  ocr_raw_response_object_prefix = var.ocr_raw_response_object_prefix
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
   topic_staging_uploads_id = module.pubsub.topic_staging_uploads_id
 
-  depends_on = [module.iam, module.pubsub]
+  depends_on = [module.pubsub]
 }
 
 # ─── Modulo Cloud SQL ────────────────────────────────────────────────────────
@@ -104,7 +118,6 @@ module "cloud_sql" {
   # Il service account ETL ha bisogno del ruolo "Cloud SQL Client" per connettersi
   sa_etl_email = module.iam.sa_etl_email
 
-  depends_on = [module.iam]
 }
 
 # ─── Modulo Secret Manager ───────────────────────────────────────────────────
@@ -119,11 +132,10 @@ module "secret_manager" {
   environment = var.environment
 
   # Permetti ai service account di leggere i segreti rilevanti
-  sa_etl_email       = module.iam.sa_etl_email
-  sa_parser_email    = module.iam.sa_parser_email
-  compute_default_sa = module.iam.compute_default_sa
-
-  depends_on = [module.iam]
+  sa_etl_email        = module.iam.sa_etl_email
+  sa_parser_email     = module.iam.sa_parser_email
+  sa_ocr_worker_email = module.iam.sa_ocr_worker_email
+  compute_default_sa  = module.iam.compute_default_sa
 }
 
 # ─── Modulo Pub/Sub ──────────────────────────────────────────────────────────
@@ -147,6 +159,31 @@ module "pubsub" {
 # Crea il registro Docker dove Cloud Build pusha le immagini dei microservizi.
 # Sostituisce il vecchio registro nel progetto bt-bim (che rimane lì).
 
+# Cloud Tasks queue for the MS-05 OCR pilot. Cloud Tasks does not currently
+# support europe-west8, so the default location is europe-west6.
+module "cloud_tasks" {
+  source = "./modules/cloud_tasks"
+
+  project_id  = var.project_id
+  environment = var.environment
+  location    = var.ocr_tasks_location
+
+  queue_name                       = var.ocr_tasks_queue_name
+  max_concurrent_dispatches        = var.ocr_tasks_max_concurrent_dispatches
+  max_dispatches_per_second        = var.ocr_tasks_max_dispatches_per_second
+  max_attempts                     = var.ocr_tasks_max_attempts
+  min_retry_backoff_seconds        = var.ocr_tasks_min_retry_backoff_seconds
+  max_retry_backoff_seconds        = var.ocr_tasks_max_retry_backoff_seconds
+  max_retry_duration_seconds       = var.ocr_tasks_max_retry_duration_seconds
+  logging_sampling_ratio           = var.ocr_tasks_logging_sampling_ratio
+  ocr_ingest_service_account_email = module.iam.sa_parser_email
+
+  depends_on = [
+    google_project_service.ocr_apis,
+    module.iam,
+  ]
+}
+
 module "artifact_registry" {
   source = "./modules/artifact_registry"
 
@@ -157,7 +194,6 @@ module "artifact_registry" {
   # Cloud Build deve poter pushare le immagini
   sa_cloudbuild_email = module.iam.sa_cloudbuild_email
 
-  depends_on = [module.iam]
 }
 
 # ─── Modulo Cloud Run ────────────────────────────────────────────────────────
@@ -172,7 +208,9 @@ module "cloud_run" {
   region      = var.region
   environment = var.environment
 
-  sa_parser_email = module.iam.sa_parser_email
+  sa_parser_email         = module.iam.sa_parser_email
+  sa_ocr_worker_email     = module.iam.sa_ocr_worker_email
+  sa_ocr_tasks_oidc_email = module.iam.sa_ocr_tasks_oidc_email
 
   bucket_staging_name = module.storage.bucket_staging_name
   bucket_ingest_name  = module.storage.bucket_ingest_name
@@ -181,6 +219,23 @@ module "cloud_run" {
   db_name             = var.db_name
 
   sa_eventarc_email = module.iam.sa_eventarc_email
+
+  ocr_tasks_project_id                = var.project_id
+  ocr_tasks_location                  = module.cloud_tasks.ocr_extraction_queue_location
+  ocr_tasks_queue                     = module.cloud_tasks.ocr_extraction_queue_name
+  ocr_tasks_service_account_email     = module.iam.sa_ocr_tasks_oidc_email
+  ocr_tasks_dispatch_deadline_seconds = var.ocr_tasks_dispatch_deadline_seconds
+  ocr_auto_profiles                   = var.ocr_auto_profiles
+  ocr_worker_timeout_seconds          = var.ocr_worker_timeout_seconds
+  ocr_worker_max_instance_count       = var.ocr_worker_max_instance_count
+  ocr_worker_concurrency              = var.ocr_worker_concurrency
+  ocr_vertex_project_id               = var.ocr_vertex_project_id != "" ? var.ocr_vertex_project_id : var.project_id
+  ocr_vertex_location                 = var.ocr_vertex_location
+  ocr_vertex_model_id                 = var.ocr_vertex_model_id
+  ocr_timeout_seconds                 = var.ocr_timeout_seconds
+  ocr_max_retries                     = var.ocr_max_retries
+  ocr_raw_response_gcs_prefix         = "gs://${module.storage.bucket_handoff_name}/${trimsuffix(var.ocr_raw_response_object_prefix, "/")}"
+  ocr_schema_version                  = var.ocr_schema_version
 
   # ─── Tenant ID PPDL (Ponte Po di Levante) ────────────────────────────────
   bim_parser_tenant_id = var.bim_parser_tenant_id
@@ -191,6 +246,7 @@ module "cloud_run" {
     module.cloud_sql,
     module.artifact_registry,
     module.secret_manager,
+    module.cloud_tasks,
   ]
 }
 
