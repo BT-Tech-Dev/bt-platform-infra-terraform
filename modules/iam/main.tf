@@ -51,6 +51,14 @@ resource "google_project_iam_member" "parser_pubsub_publisher" {
   member  = "serviceAccount:${google_service_account.parser.email}"
 }
 
+# Permette all'operatore autorizzato di impersonare il parser SA solo per
+# amministrazione locale controllata e canary MS-05 OCR.
+resource "google_service_account_iam_member" "admin_parser_token_creator" {
+  service_account_id = google_service_account.parser.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "user:admin@buildtrust.it"
+}
+
 # ─── Service Account: OCR worker runtime ─────────────────────────────────────
 # Runtime privato del worker OCR. Ha accesso a Cloud SQL, GCS artifact/source e
 # Vertex AI, ma non può accodare task.
