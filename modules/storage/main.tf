@@ -17,6 +17,11 @@ locals {
   # Prefisso comune per tutti i bucket del progetto
   bucket_prefix                  = "bt-platform"
   ocr_raw_response_object_prefix = trim(var.ocr_raw_response_object_prefix, "/")
+  vertex_ai_service_agent        = "service-${data.google_project.current.number}@gcp-sa-aiplatform.iam.gserviceaccount.com"
+}
+
+data "google_project" "current" {
+  project_id = var.project_id
 }
 
 # ─── Bucket: Staging ─────────────────────────────────────────────────────────
@@ -199,6 +204,18 @@ resource "google_storage_bucket_iam_member" "ocr_worker_staging_reader" {
   bucket = google_storage_bucket.staging.name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${var.sa_ocr_worker_email}"
+}
+
+resource "google_storage_bucket_iam_member" "vertex_ai_staging_holding_reader" {
+  bucket = google_storage_bucket.staging.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${local.vertex_ai_service_agent}"
+
+  condition {
+    title       = "VertexAiHoldingPrefixReadOnly"
+    description = "Allow Vertex AI service agent to read OCR source objects only under the staging holding prefix."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.staging.name}/objects/holding/\")"
+  }
 }
 
 resource "google_storage_bucket_iam_member" "ocr_worker_handoff_raw_response_user" {
