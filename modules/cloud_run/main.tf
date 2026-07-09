@@ -51,8 +51,8 @@ resource "google_cloud_run_v2_service" "bim_parser" {
       # ─── Risorse ────────────────────────────────────────────────────
       resources {
         limits = {
-          cpu    = "1"     # 1 vCPU
-          memory = "512Mi" # 512 MiB RAM (stesso del vecchio progetto)
+          cpu    = "1"   # 1 vCPU
+          memory = "2Gi" # BIM JSON ~80 MiB is parsed non-streaming; keep >2x measured peak RSS.
         }
         # cpu_idle = true: CPU allocata solo durante elaborazione richiesta (cost saving)
         cpu_idle = true
@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_service" "bim_parser" {
       }
       env {
         name  = "MAX_SIZE_MB"
-        value = "50"
+        value = "128"
       }
       env {
         name  = "LOG_LEVEL"
@@ -175,13 +175,12 @@ resource "google_cloud_run_v2_service" "bim_parser" {
     }
 
     # ─── Timeout ─────────────────────────────────────────────────────
-    timeout = "300s" # 5 minuti (stesso del vecchio progetto)
+    timeout = "900s"
 
     # ─── Concorrenza ─────────────────────────────────────────────────
-    # NOTA: per l'ETL finale (scrittura DB) usare max_instance_count = 1
-    # e concurrency = 1 come nel vecchio bim-etl-v1. Qui il parser può
-    # girare in parallelo.
-    max_instance_request_concurrency = 80
+    # BIM parsing is non-streaming and memory-heavy for large Revit JSON exports.
+    # Keep one active request per instance to avoid concurrent in-process payloads.
+    max_instance_request_concurrency = 1
   }
 
   labels = {
