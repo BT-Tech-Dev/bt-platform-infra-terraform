@@ -358,7 +358,7 @@ resource "google_cloud_run_v2_service" "production_ingestion_service" {
   project  = var.project_id
 
   deletion_protection = false
-  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
     service_account = var.sa_parser_email
