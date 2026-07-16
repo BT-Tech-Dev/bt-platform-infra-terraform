@@ -130,6 +130,13 @@ resource "google_cloud_run_v2_service" "bim_parser" {
         value = var.bim_parser_tenant_id
       }
 
+      # Base service URL. The parser app appends the internal retry path and
+      # uses this same value as the Cloud Run OIDC audience.
+      env {
+        name  = "PRODUCTION_INGESTION_SERVICE_URL"
+        value = google_cloud_run_v2_service.production_ingestion_service.uri
+      }
+
       # ─── Segreti da Secret Manager ───────────────────────────────────
       # Cloud Run legge i valori direttamente da Secret Manager al runtime.
       # Il SA sa-bt-parser-prod ha roles/secretmanager.secretAccessor su questi secret
@@ -511,6 +518,14 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_production_i
   name     = google_cloud_run_v2_service.production_ingestion_service.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.sa_eventarc_email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "bim_parser_invoker_production_ingestion" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.production_ingestion_service.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_parser_email}"
 }
 
 # =============================================================================
