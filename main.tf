@@ -90,6 +90,7 @@ module "storage" {
   sa_etl_email                   = module.iam.sa_etl_email
   sa_parser_email                = module.iam.sa_parser_email
   sa_ocr_worker_email            = module.iam.sa_ocr_worker_email
+  sa_revit_export_email          = module.iam.sa_revit_export_email
   ocr_raw_response_object_prefix = var.ocr_raw_response_object_prefix
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
@@ -107,13 +108,15 @@ module "storage" {
 module "cloud_sql" {
   source = "./modules/cloud_sql"
 
-  project_id       = var.project_id
-  region           = var.region
-  environment      = var.environment
-  db_instance_name = var.db_instance_name
-  db_name          = var.db_name
-  db_version       = var.db_version
-  db_tier          = var.db_tier
+  project_id                              = var.project_id
+  region                                  = var.region
+  environment                             = var.environment
+  db_instance_name                        = var.db_instance_name
+  db_name                                 = var.db_name
+  db_version                              = var.db_version
+  db_tier                                 = var.db_tier
+  revit_export_ro_password                = ephemeral.random_password.revit_export_ro.result
+  revit_export_ro_password_rotation_epoch = var.revit_export_ro_password_rotation_epoch
 
   # Il service account ETL ha bisogno del ruolo "Cloud SQL Client" per connettersi
   sa_etl_email = module.iam.sa_etl_email
@@ -132,10 +135,19 @@ module "secret_manager" {
   environment = var.environment
 
   # Permetti ai service account di leggere i segreti rilevanti
-  sa_etl_email        = module.iam.sa_etl_email
-  sa_parser_email     = module.iam.sa_parser_email
-  sa_ocr_worker_email = module.iam.sa_ocr_worker_email
-  compute_default_sa  = module.iam.compute_default_sa
+  sa_etl_email                            = module.iam.sa_etl_email
+  sa_parser_email                         = module.iam.sa_parser_email
+  sa_ocr_worker_email                     = module.iam.sa_ocr_worker_email
+  sa_revit_export_email                   = module.iam.sa_revit_export_email
+  revit_export_ro_password                = ephemeral.random_password.revit_export_ro.result
+  revit_export_ro_password_rotation_epoch = var.revit_export_ro_password_rotation_epoch
+  compute_default_sa                      = module.iam.compute_default_sa
+}
+
+ephemeral "random_password" "revit_export_ro" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*+-=?@^_"
 }
 
 # ─── Modulo Pub/Sub ──────────────────────────────────────────────────────────
@@ -247,6 +259,29 @@ module "cloud_run" {
     module.artifact_registry,
     module.secret_manager,
     module.cloud_tasks,
+  ]
+}
+
+module "revit_export_job" {
+  source = "./modules/revit_export_job"
+
+  project_id              = var.project_id
+  region                  = var.region
+  environment             = var.environment
+  image                   = var.revit_export_bim_parser_image
+  service_account_email   = module.iam.sa_revit_export_email
+  db_connection_name      = module.cloud_sql.connection_name
+  db_name                 = var.db_name
+  db_user                 = "revit_export_ro"
+  db_password_secret_name = module.secret_manager.secret_db_password_revit_export_ro_name
+  export_bucket_name      = module.storage.bucket_exports_name
+
+  depends_on = [
+    module.cloud_run,
+    module.cloud_sql,
+    module.iam,
+    module.secret_manager,
+    module.storage,
   ]
 }
 

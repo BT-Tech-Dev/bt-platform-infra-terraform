@@ -7,6 +7,10 @@ output "secret_db_password_ro_name" {
   value = google_secret_manager_secret.db_password_ro.secret_id
 }
 
+output "secret_db_password_revit_export_ro_name" {
+  value = google_secret_manager_secret.db_password_revit_export_ro.secret_id
+}
+
 output "secret_llm_api_key_name" {
   value = google_secret_manager_secret.llm_api_key.secret_id
 }

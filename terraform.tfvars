@@ -36,3 +36,6 @@ ocr_timeout_seconds = 900
 ocr_max_retries     = 3
 ocr_schema_version  = "ocr-json-contract-v1"
 ocr_auto_profiles   = "ferroberica_steel_ddt_v1"
+
+revit_export_bim_parser_image           = "europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/bim-parser-v1@sha256:faeef4ae321aee14daff7cec4df6496fbfdf785d4cfdeecfd4c16102e4472b02"
+revit_export_ro_password_rotation_epoch = 2

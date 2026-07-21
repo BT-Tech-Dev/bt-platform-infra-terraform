@@ -173,6 +173,22 @@ resource "google_storage_bucket" "handoff" {
   }
 }
 
+resource "google_storage_bucket" "exports" {
+  name                        = "${local.bucket_prefix}-exports-${var.environment}"
+  project                     = var.project_id
+  location                    = var.region
+  storage_class               = "STANDARD"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  labels = {
+    environment = var.environment
+    component   = "revit-export"
+    bucket_role = "exports"
+  }
+}
+
 # ─── IAM: permessi sui bucket ────────────────────────────────────────────────
 # Il parser (Cloud Run bim-parser-v1) deve poter leggere e scrivere su tutti i bucket
 
@@ -198,6 +214,18 @@ resource "google_storage_bucket_iam_member" "etl_handoff" {
   bucket = google_storage_bucket.handoff.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${var.sa_etl_email}"
+}
+
+resource "google_storage_bucket_iam_member" "revit_export_writer" {
+  bucket = google_storage_bucket.exports.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${var.sa_revit_export_email}"
+
+  condition {
+    title       = "RevitActualExportPrefixOnly"
+    description = "Allow the Revit export Job to create objects only under exports/revit-actual/."
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.exports.name}/objects/exports/revit-actual/\")"
+  }
 }
 
 resource "google_storage_bucket_iam_member" "ocr_worker_staging_reader" {

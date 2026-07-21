@@ -8,6 +8,11 @@ output "sa_etl_email" {
   value       = google_service_account.etl.email
 }
 
+output "sa_revit_export_email" {
+  description = "Email service account Cloud Run Job Revit actual export"
+  value       = google_service_account.revit_export.email
+}
+
 output "sa_eventarc_email" {
   description = "Email service account EventArc"
   value       = google_service_account.eventarc.email

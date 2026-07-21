@@ -208,6 +208,19 @@ resource "google_service_account_iam_member" "cloud_tasks_oidc_token_creator" {
   member             = "serviceAccount:${local.cloud_tasks_service_agent}"
 }
 
+resource "google_service_account" "revit_export" {
+  account_id   = "sa-bt-revit-export-${var.environment}"
+  display_name = "BT Revit Actual Export"
+  description  = "Cloud Run Job runtime for read-only Revit actual exports"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "revit_export_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.revit_export.email}"
+}
+
 resource "google_service_account_iam_member" "parser_ocr_tasks_oidc_sa_user" {
   service_account_id = google_service_account.ocr_tasks_oidc.name
   role               = "roles/iam.serviceAccountUser"

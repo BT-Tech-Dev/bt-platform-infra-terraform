@@ -93,6 +93,20 @@ resource "google_secret_manager_secret" "db_password_ro" {
   }
 }
 
+resource "google_secret_manager_secret" "db_password_revit_export_ro" {
+  secret_id = "${local.secret_prefix}-db-password-revit-export-ro-${var.environment}"
+  project   = var.project_id
+
+  labels = {
+    environment = var.environment
+    service     = "revit-export"
+  }
+
+  replication {
+    auto {}
+  }
+}
+
 # ─── Segreto: API key LLM ────────────────────────────────────────────────────
 # Usata dal servizio bim-llm-merge (attualmente disabilitato, ma struttura pronta)
 resource "google_secret_manager_secret" "llm_api_key" {
@@ -150,6 +164,17 @@ resource "google_secret_manager_secret_version" "db_password_placeholder" {
   }
 }
 
+resource "google_secret_manager_secret_version" "db_password_revit_export_ro" {
+  secret                 = google_secret_manager_secret.db_password_revit_export_ro.id
+  secret_data_wo         = var.revit_export_ro_password
+  secret_data_wo_version = var.revit_export_ro_password_rotation_epoch
+
+  # Create the enabled replacement before deleting a rotated, compromised version.
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "google_secret_manager_secret_version" "llm_api_key_placeholder" {
   secret      = google_secret_manager_secret.llm_api_key.id
   secret_data = "PLACEHOLDER_CHANGE_ME_IMMEDIATELY"
@@ -189,6 +214,13 @@ resource "google_secret_manager_secret_iam_member" "etl_db_password_ro" {
   secret_id = google_secret_manager_secret.db_password_ro.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.sa_etl_email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "revit_export_db_password" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.db_password_revit_export_ro.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.sa_revit_export_email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "ocr_worker_db_password" {

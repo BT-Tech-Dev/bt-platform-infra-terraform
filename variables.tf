@@ -264,6 +264,27 @@ variable "bim_parser_tenant_id" {
   default     = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 
+variable "revit_export_bim_parser_image" {
+  description = "Immutable Artifact Registry image digest used by the Revit actual export Job."
+  type        = string
+
+  validation {
+    condition     = can(regex("^.+@sha256:[a-f0-9]{64}$", var.revit_export_bim_parser_image))
+    error_message = "revit_export_bim_parser_image must use an immutable @sha256 digest reference."
+  }
+}
+
+variable "revit_export_ro_password_rotation_epoch" {
+  description = "Change deliberately to rotate the Revit export database password and Secret Manager version together."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.revit_export_ro_password_rotation_epoch >= 1
+    error_message = "revit_export_ro_password_rotation_epoch must be at least 1."
+  }
+}
+
 variable "environment" {
   description = "Ambiente di deployment. Usato nei nomi delle risorse per distinguere prod/staging/dev"
   type        = string

@@ -36,27 +36,27 @@ resource "google_sql_database_instance" "main" {
     availability_type = "ZONAL"
 
     # ─── Disco ────────────────────────────────────────────────────────────
-    disk_autoresize       = true           # GCP aumenta il disco automaticamente se si riempie
-    disk_autoresize_limit = 100            # Limite max 100 GB (evita costi incontrollati)
-    disk_size             = 20             # GB iniziali
-    disk_type             = "PD_SSD"      # SSD per performance migliori su query JSON/JSONB
+    disk_autoresize       = true     # GCP aumenta il disco automaticamente se si riempie
+    disk_autoresize_limit = 100      # Limite max 100 GB (evita costi incontrollati)
+    disk_size             = 20       # GB iniziali
+    disk_type             = "PD_SSD" # SSD per performance migliori su query JSON/JSONB
 
     # ─── Backup ───────────────────────────────────────────────────────────
     backup_configuration {
       enabled                        = true
-      start_time                     = "03:00"  # Backup alle 3:00 AM (basso traffico)
-      location                       = "eu"     # Backup nella region EU
-      point_in_time_recovery_enabled = true     # Permette ripristino a qualsiasi momento (PITR)
-      transaction_log_retention_days = 7        # Mantieni 7 giorni di WAL log
+      start_time                     = "03:00" # Backup alle 3:00 AM (basso traffico)
+      location                       = "eu"    # Backup nella region EU
+      point_in_time_recovery_enabled = true    # Permette ripristino a qualsiasi momento (PITR)
+      transaction_log_retention_days = 7       # Mantieni 7 giorni di WAL log
       backup_retention_settings {
-        retained_backups = 14  # Mantieni gli ultimi 14 backup giornalieri
+        retained_backups = 14 # Mantieni gli ultimi 14 backup giornalieri
       }
     }
 
     # ─── Manutenzione ─────────────────────────────────────────────────────
     maintenance_window {
-      day          = 7    # Domenica (meno traffico)
-      hour         = 4    # Alle 4:00 AM
+      day          = 7 # Domenica (meno traffico)
+      hour         = 4 # Alle 4:00 AM
       update_track = "stable"
     }
 
@@ -64,7 +64,7 @@ resource "google_sql_database_instance" "main" {
     database_flags {
       # Abilita il log delle query lente (> 1 secondo) per debugging performance
       name  = "log_min_duration_statement"
-      value = "1000"  # millisecondi
+      value = "1000" # millisecondi
     }
 
     database_flags {
@@ -83,8 +83,8 @@ resource "google_sql_database_instance" "main" {
     # Cloud Run si connette via Cloud SQL Connector (API proxy), non IP diretto.
     # L'IP pubblico serve solo per amministrazione locale via Cloud SQL Proxy.
     ip_configuration {
-      ipv4_enabled    = true   # IP pubblico abilitato per admin locale
-      ssl_mode        = "ENCRYPTED_ONLY"  # SSL obbligatorio
+      ipv4_enabled = true             # IP pubblico abilitato per admin locale
+      ssl_mode     = "ENCRYPTED_ONLY" # SSL obbligatorio
 
       # NESSUNA rete autorizzata: nessuno può connettersi direttamente all'IP.
       # La connessione è solo via Cloud SQL Connector API (Cloud Run) o
@@ -92,7 +92,7 @@ resource "google_sql_database_instance" "main" {
     }
 
     insights_config {
-      query_insights_enabled  = true   # Raccoglie statistiche sulle query (utile per ottimizzazione)
+      query_insights_enabled  = true # Raccoglie statistiche sulle query (utile per ottimizzazione)
       query_string_length     = 1024
       record_application_tags = false
       record_client_address   = false
@@ -107,10 +107,10 @@ resource "google_sql_database_instance" "main" {
 
 # ─── Database ────────────────────────────────────────────────────────────────
 resource "google_sql_database" "main" {
-  name     = var.db_name
-  instance = google_sql_database_instance.main.name
-  project  = var.project_id
-  charset  = "UTF8"
+  name      = var.db_name
+  instance  = google_sql_database_instance.main.name
+  project   = var.project_id
+  charset   = "UTF8"
   collation = "en_US.UTF8"
 }
 
@@ -152,6 +152,14 @@ resource "google_sql_user" "readonly_user" {
   lifecycle {
     ignore_changes = [password]
   }
+}
+
+resource "google_sql_user" "revit_export_ro" {
+  name                = "revit_export_ro"
+  instance            = google_sql_database_instance.main.name
+  project             = var.project_id
+  password_wo         = var.revit_export_ro_password
+  password_wo_version = var.revit_export_ro_password_rotation_epoch
 }
 
 # ─── IAM: il SA ETL può connettersi via Cloud SQL Connector ──────────────────

@@ -1,6 +1,8 @@
 # Terraform state locale (mai committare — contiene IPs, password, ecc.)
 *.tfstate
 *.tfstate.*
+*.tfplan
+*-plan.txt
 .terraform/
 .terraform.lock.hcl
 
@@ -28,3 +30,10 @@ Thumbs.db
 
 # Script output
 *.log
+
+# Local Revit actual-export diagnostics and downloaded artifacts
+revit-export-*.json
+*revit*actual*.json
+revit-actual-exports/
+tf-state-iam-*.json
+*credential*.json

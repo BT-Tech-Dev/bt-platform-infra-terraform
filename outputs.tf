@@ -87,6 +87,16 @@ output "production_ingestion_ocr_worker_url" {
   value       = module.cloud_run.production_ingestion_ocr_worker_url
 }
 
+output "revit_actual_export_job_name" {
+  description = "Nome del Cloud Run Job per l'export Revit actual Balocco2"
+  value       = module.revit_export_job.name
+}
+
+output "revit_actual_export_bucket_name" {
+  description = "Bucket privato degli export Revit actual"
+  value       = module.storage.bucket_exports_name
+}
+
 output "production_ingestion_ocr_worker_name" {
   description = "Nome del Cloud Run privato production-ingestion-ocr-worker"
   value       = module.cloud_run.production_ingestion_ocr_worker_name
