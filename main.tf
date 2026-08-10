@@ -291,6 +291,15 @@ resource "google_api_gateway_api" "iot_ingestion" {
   depends_on = [google_project_service.iot_api_gateway_apis]
 }
 
+resource "google_project_service" "iot_api_gateway_managed_service" {
+  project                    = var.project_id
+  service                    = google_api_gateway_api.iot_ingestion.managed_service
+  disable_on_destroy         = false
+  disable_dependent_services = false
+
+  depends_on = [google_api_gateway_api_config.iot_ingestion]
+}
+
 resource "google_api_gateway_api_config" "iot_ingestion" {
   provider      = google-beta
   project       = var.project_id
@@ -343,7 +352,7 @@ resource "google_apikeys_key" "ug65_balocco2_iot" {
     }
   }
 
-  depends_on = [google_project_service.iot_api_gateway_apis]
+  depends_on = [google_project_service.iot_api_gateway_managed_service]
 }
 
 module "revit_export_job" {
