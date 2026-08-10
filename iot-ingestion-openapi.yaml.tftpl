@@ -8,7 +8,7 @@ x-google-api-management:
       displayName: IoT measurement requests
   quota:
     limits:
-      iot_measurement_requests_per_minute:
+      iot-measurement-requests-per-minute:
         metric: iot_measurement_requests
         values: 60
   backends:
@@ -24,12 +24,12 @@ components:
       type: apiKey
       name: x-api-key
       in: header
+security:
+  - ug65_api_key: []
 paths:
   /api/v1/iot/measurements:
     post:
       operationId: ingestIotMeasurements
-      security:
-        - ug65_api_key: []
       x-google-quota:
         iot_measurement_requests: 1
       responses:
