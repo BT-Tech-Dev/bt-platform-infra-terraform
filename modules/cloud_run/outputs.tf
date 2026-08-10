@@ -37,3 +37,13 @@ output "production_ingestion_ocr_worker_url" {
   description = "URL HTTPS del servizio Cloud Run OCR worker"
   value       = google_cloud_run_v2_service.production_ingestion_ocr_worker.uri
 }
+
+output "iot_ingestion_service_name" {
+  description = "Nome del servizio Cloud Run IoT ingestion"
+  value       = google_cloud_run_v2_service.iot_ingestion_service.name
+}
+
+output "iot_ingestion_service_url" {
+  description = "URL HTTPS del servizio Cloud Run IoT ingestion"
+  value       = google_cloud_run_v2_service.iot_ingestion_service.uri
+}

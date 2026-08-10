@@ -528,6 +528,105 @@ resource "google_cloud_run_v2_service_iam_member" "bim_parser_invoker_production
   member   = "serviceAccount:${var.sa_parser_email}"
 }
 
+# Internet-reachable only for authenticated callers. No public principal is
+# bound; the dedicated UG65 identity below is the sole invoker.
+resource "google_cloud_run_v2_service" "iot_ingestion_service" {
+  name     = "iot-ingestion-service"
+  location = var.region
+  project  = var.project_id
+
+  deletion_protection = false
+  ingress             = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = var.sa_iot_ingestion_runtime_email
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.db_connection_name]
+      }
+    }
+
+    containers {
+      image = var.iot_ingestion_image
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "RAW_BUCKET"
+        value = var.bucket_iot_raw_name
+      }
+      env {
+        name  = "INSTANCE_CONNECTION_NAME"
+        value = var.db_connection_name
+      }
+      env {
+        name  = "DB_USER"
+        value = "bt_app"
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+      env {
+        name  = "LOG_LEVEL"
+        value = "INFO"
+      }
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "bt-platform-db-password-${var.environment}"
+            version = "latest"
+          }
+        }
+      }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+
+      ports {
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    timeout                          = "300s"
+    max_instance_request_concurrency = 20
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "iot-ingestion-service"
+    version     = "v1"
+  }
+
+  lifecycle {
+    ignore_changes = [client, client_version, scaling]
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "ug65_balocco2_invoker_iot_ingestion" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.iot_ingestion_service.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_ug65_balocco2_iot_invoker_email}"
+}
+
 # =============================================================================
 # Cloud Run: production-ingestion-ocr-worker (MS-05 OCR pilot)
 #

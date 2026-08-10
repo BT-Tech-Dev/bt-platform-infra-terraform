@@ -189,6 +189,36 @@ resource "google_storage_bucket" "exports" {
   }
 }
 
+resource "google_storage_bucket" "iot_raw" {
+  name                        = "${local.bucket_prefix}-iot-raw-${var.environment}"
+  project                     = var.project_id
+  location                    = var.region
+  storage_class               = "STANDARD"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+
+  labels = {
+    environment = var.environment
+    component   = "iot-ingestion"
+    bucket_role = "raw"
+  }
+}
+
 # ─── IAM: permessi sui bucket ────────────────────────────────────────────────
 # Il parser (Cloud Run bim-parser-v1) deve poter leggere e scrivere su tutti i bucket
 
@@ -226,6 +256,20 @@ resource "google_storage_bucket_iam_member" "revit_export_writer" {
     description = "Allow the Revit export Job to create objects only under exports/revit-actual/."
     expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.exports.name}/objects/exports/revit-actual/\")"
   }
+}
+
+# The service writes with if_generation_match=0, then reloads the object to
+# verify the stored SHA-256 and GCS generation without object mutation.
+resource "google_storage_bucket_iam_member" "iot_ingestion_raw_creator" {
+  bucket = google_storage_bucket.iot_raw.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${var.sa_iot_ingestion_runtime_email}"
+}
+
+resource "google_storage_bucket_iam_member" "iot_ingestion_raw_viewer" {
+  bucket = google_storage_bucket.iot_raw.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.sa_iot_ingestion_runtime_email}"
 }
 
 resource "google_storage_bucket_iam_member" "ocr_worker_staging_reader" {

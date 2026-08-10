@@ -4,9 +4,12 @@ variable "environment" { type = string }
 variable "sa_parser_email" { type = string }
 variable "sa_ocr_worker_email" { type = string }
 variable "sa_ocr_tasks_oidc_email" { type = string }
+variable "sa_iot_ingestion_runtime_email" { type = string }
+variable "sa_ug65_balocco2_iot_invoker_email" { type = string }
 variable "bucket_staging_name" { type = string }
 variable "bucket_ingest_name" { type = string }
 variable "bucket_handoff_name" { type = string }
+variable "bucket_iot_raw_name" { type = string }
 variable "db_connection_name" { type = string }
 variable "db_name" { type = string }
 variable "sa_eventarc_email" { type = string }
@@ -26,6 +29,7 @@ variable "ocr_timeout_seconds" { type = number }
 variable "ocr_max_retries" { type = number }
 variable "ocr_raw_response_gcs_prefix" { type = string }
 variable "ocr_schema_version" { type = string }
+variable "iot_ingestion_image" { type = string }
 
 # ─── Tenant ID per il parser ─────────────────────────────────────────────────
 variable "bim_parser_tenant_id" {

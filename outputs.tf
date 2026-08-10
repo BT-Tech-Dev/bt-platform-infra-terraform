@@ -111,3 +111,18 @@ output "ocr_extraction_queue_location" {
   description = "Location della queue Cloud Tasks OCR"
   value       = module.cloud_tasks.ocr_extraction_queue_location
 }
+
+output "iot_ingestion_service_name" {
+  description = "Nome del Cloud Run service IoT ingestion"
+  value       = module.cloud_run.iot_ingestion_service_name
+}
+
+output "iot_ingestion_service_url" {
+  description = "URL HTTPS del Cloud Run service IoT ingestion"
+  value       = module.cloud_run.iot_ingestion_service_url
+}
+
+output "iot_raw_bucket_name" {
+  description = "Bucket GCS raw immutabile per payload IoT"
+  value       = module.storage.bucket_iot_raw_name
+}

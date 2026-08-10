@@ -13,12 +13,13 @@ DB_INSTANCE  := bt-platform-pg-prod
 DB_NAME      := db_bt_platform
 DB_USER      := postgres
 
-.PHONY: help auth init plan apply destroy fmt validate init-db
+.PHONY: help auth init plan apply destroy fmt validate init-db apply-iot-db-foundation
 
 # ─── Aiuto ───────────────────────────────────────────────────────────────────
 help:
 	@echo ""
 	@echo "Comandi disponibili:"
+	@echo "  make apply-iot-db-foundation - apply only the IoT schema and grants"
 	@echo "  make auth       — autentica gcloud sul progetto bt-platform-prod"
 	@echo "  make init       — terraform init (scarica provider e configura backend)"
 	@echo "  make fmt        — formatta tutti i file .tf"
@@ -62,6 +63,13 @@ destroy:
 # Normalmente viene eseguito AUTOMATICAMENTE da terraform apply (null_resource).
 # Usa questo comando solo per forzare una re-inizializzazione manuale.
 # Invoca Cloud Build: nessun tool locale necessario tranne gcloud.
+apply-iot-db-foundation:
+	@echo "Applying only the IoT database foundation via Cloud Build..."
+	gcloud builds submit . \
+		--config=scripts/cloudbuild-apply-iot-db-foundation.yaml \
+		--project=$(PROJECT_ID) \
+		--quiet
+
 init-db:
 	@echo "→ Inizializzazione schemi database via Cloud Build..."
 	gcloud builds submit . \

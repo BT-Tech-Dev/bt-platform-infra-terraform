@@ -91,6 +91,7 @@ module "storage" {
   sa_parser_email                = module.iam.sa_parser_email
   sa_ocr_worker_email            = module.iam.sa_ocr_worker_email
   sa_revit_export_email          = module.iam.sa_revit_export_email
+  sa_iot_ingestion_runtime_email = module.iam.sa_iot_ingestion_runtime_email
   ocr_raw_response_object_prefix = var.ocr_raw_response_object_prefix
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
@@ -139,6 +140,7 @@ module "secret_manager" {
   sa_parser_email                         = module.iam.sa_parser_email
   sa_ocr_worker_email                     = module.iam.sa_ocr_worker_email
   sa_revit_export_email                   = module.iam.sa_revit_export_email
+  sa_iot_ingestion_runtime_email          = module.iam.sa_iot_ingestion_runtime_email
   revit_export_ro_password                = ephemeral.random_password.revit_export_ro.result
   revit_export_ro_password_rotation_epoch = var.revit_export_ro_password_rotation_epoch
   compute_default_sa                      = module.iam.compute_default_sa
@@ -220,13 +222,16 @@ module "cloud_run" {
   region      = var.region
   environment = var.environment
 
-  sa_parser_email         = module.iam.sa_parser_email
-  sa_ocr_worker_email     = module.iam.sa_ocr_worker_email
-  sa_ocr_tasks_oidc_email = module.iam.sa_ocr_tasks_oidc_email
+  sa_parser_email                    = module.iam.sa_parser_email
+  sa_ocr_worker_email                = module.iam.sa_ocr_worker_email
+  sa_ocr_tasks_oidc_email            = module.iam.sa_ocr_tasks_oidc_email
+  sa_iot_ingestion_runtime_email     = module.iam.sa_iot_ingestion_runtime_email
+  sa_ug65_balocco2_iot_invoker_email = module.iam.sa_ug65_balocco2_iot_invoker_email
 
   bucket_staging_name = module.storage.bucket_staging_name
   bucket_ingest_name  = module.storage.bucket_ingest_name
   bucket_handoff_name = module.storage.bucket_handoff_name
+  bucket_iot_raw_name = module.storage.bucket_iot_raw_name
   db_connection_name  = module.cloud_sql.connection_name
   db_name             = var.db_name
 
@@ -248,6 +253,7 @@ module "cloud_run" {
   ocr_max_retries                     = var.ocr_max_retries
   ocr_raw_response_gcs_prefix         = "gs://${module.storage.bucket_handoff_name}/${trimsuffix(var.ocr_raw_response_object_prefix, "/")}"
   ocr_schema_version                  = var.ocr_schema_version
+  iot_ingestion_image                 = var.iot_ingestion_image
 
   # ─── Tenant ID PPDL (Ponte Po di Levante) ────────────────────────────────
   bim_parser_tenant_id = var.bim_parser_tenant_id

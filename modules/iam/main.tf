@@ -215,6 +215,26 @@ resource "google_service_account" "revit_export" {
   project      = var.project_id
 }
 
+resource "google_service_account" "iot_ingestion_runtime" {
+  account_id   = "iot-ingestion-runtime"
+  display_name = "BT IoT ingestion runtime"
+  description  = "Cloud Run runtime for authenticated UG65 IoT measurement ingestion"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "iot_ingestion_runtime_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.iot_ingestion_runtime.email}"
+}
+
+resource "google_service_account" "ug65_balocco2_iot_invoker" {
+  account_id   = "ug65-balocco2-iot-invoker"
+  display_name = "UG65 Balocco2 IoT invoker"
+  description  = "OIDC caller for iot-ingestion-service only"
+  project      = var.project_id
+}
+
 resource "google_project_iam_member" "revit_export_sql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
