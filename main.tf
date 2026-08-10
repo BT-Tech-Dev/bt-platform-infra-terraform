@@ -19,6 +19,14 @@ provider "google" {
   region  = var.region
 }
 
+provider "google" {
+  alias                 = "api_keys"
+  project               = var.project_id
+  region                = var.region
+  billing_project       = var.project_id
+  user_project_override = true
+}
+
 provider "google-beta" {
   project = var.project_id
   region  = var.region
@@ -342,6 +350,7 @@ resource "google_api_gateway_gateway" "iot_ingestion" {
 }
 
 resource "google_apikeys_key" "ug65_balocco2_iot" {
+  provider     = google.api_keys
   project      = var.project_id
   name         = "ug65-balocco2-iot-key"
   display_name = "UG65 Balocco2 IoT key"
