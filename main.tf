@@ -19,10 +19,10 @@ provider "google" {
   region  = var.region
 }
 
-#provider "google-beta" {
-#  project = var.project_id
-#  region  = var.region
-#}
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+}
 
 # ─── API GCP ─────────────────────────────────────────────────────────────────
 # Prima di creare qualsiasi risorsa GCP, bisogna abilitare le API corrispondenti.
@@ -43,6 +43,20 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",                  # IAM (identity and access management)
     "cloudresourcemanager.googleapis.com", # Resource Manager (gestione progetto)
     "servicenetworking.googleapis.com",    # Service Networking (per peering VPC futuro)
+  ])
+
+  project                    = var.project_id
+  service                    = each.value
+  disable_on_destroy         = false
+  disable_dependent_services = false
+}
+
+resource "google_project_service" "iot_api_gateway_apis" {
+  for_each = toset([
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
+    "apikeys.googleapis.com",
   ])
 
   project                    = var.project_id
@@ -266,6 +280,70 @@ module "cloud_run" {
     module.secret_manager,
     module.cloud_tasks,
   ]
+}
+
+resource "google_api_gateway_api" "iot_ingestion" {
+  provider     = google-beta
+  project      = var.project_id
+  api_id       = "bt-iot-ingestion-api"
+  display_name = "BT IoT ingestion API"
+
+  depends_on = [google_project_service.iot_api_gateway_apis]
+}
+
+resource "google_api_gateway_api_config" "iot_ingestion" {
+  provider      = google-beta
+  project       = var.project_id
+  api           = google_api_gateway_api.iot_ingestion.api_id
+  api_config_id = "iot-ingestion-v1"
+  display_name  = "IoT ingestion API config v1"
+
+  gateway_config {
+    backend_config {
+      google_service_account = module.iam.sa_ug65_balocco2_iot_invoker_email
+    }
+  }
+
+  openapi_documents {
+    document {
+      path = "iot-ingestion-openapi.yaml"
+      contents = base64encode(templatefile("${path.module}/iot-ingestion-openapi.yaml.tftpl", {
+        cloud_run_url = module.cloud_run.iot_ingestion_service_url
+      }))
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    google_project_service.iot_api_gateway_apis,
+    module.cloud_run,
+  ]
+}
+
+resource "google_api_gateway_gateway" "iot_ingestion" {
+  provider     = google-beta
+  project      = var.project_id
+  region       = "europe-west1"
+  gateway_id   = "bt-iot-ingestion-gateway"
+  display_name = "BT IoT ingestion gateway"
+  api_config   = google_api_gateway_api_config.iot_ingestion.name
+}
+
+resource "google_apikeys_key" "ug65_balocco2_iot" {
+  project      = var.project_id
+  name         = "ug65-balocco2-iot-key"
+  display_name = "UG65 Balocco2 IoT key"
+
+  restrictions {
+    api_targets {
+      service = google_api_gateway_api.iot_ingestion.managed_service
+    }
+  }
+
+  depends_on = [google_project_service.iot_api_gateway_apis]
 }
 
 module "revit_export_job" {
