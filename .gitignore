@@ -37,3 +37,5 @@ revit-export-*.json
 revit-actual-exports/
 tf-state-iam-*.json
 *credential*.json
+
+tfplan*
