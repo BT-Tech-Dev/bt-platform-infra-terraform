@@ -111,3 +111,33 @@ output "ocr_extraction_queue_location" {
   description = "Location della queue Cloud Tasks OCR"
   value       = module.cloud_tasks.ocr_extraction_queue_location
 }
+
+output "iot_ingestion_service_name" {
+  description = "Nome del Cloud Run service IoT ingestion"
+  value       = module.cloud_run.iot_ingestion_service_name
+}
+
+output "iot_ingestion_service_url" {
+  description = "URL HTTPS del Cloud Run service IoT ingestion"
+  value       = module.cloud_run.iot_ingestion_service_url
+}
+
+output "iot_raw_bucket_name" {
+  description = "Bucket GCS raw immutabile per payload IoT"
+  value       = module.storage.bucket_iot_raw_name
+}
+
+output "iot_api_gateway_url" {
+  description = "URL HTTPS pubblico del gateway IoT per UG65"
+  value       = "https://${google_api_gateway_gateway.iot_ingestion.default_hostname}"
+}
+
+output "iot_api_gateway_name" {
+  description = "Nome della gateway API IoT"
+  value       = google_api_gateway_gateway.iot_ingestion.name
+}
+
+output "iot_api_managed_service_name" {
+  description = "Managed Service name dell'API IoT, usato dalla restrizione della API key"
+  value       = google_api_gateway_api.iot_ingestion.managed_service
+}

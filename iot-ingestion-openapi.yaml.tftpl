@@ -1,0 +1,37 @@
+openapi: 3.0.4
+info:
+  title: BT IoT ingestion API
+  version: 1.0.0
+x-google-api-management:
+  metrics:
+    iot_measurement_requests:
+      displayName: IoT measurement requests
+  quota:
+    limits:
+      iot-measurement-requests-per-minute:
+        metric: iot_measurement_requests
+        values: 60
+  backends:
+    iot_ingestion_backend:
+      address: ${cloud_run_url}
+      jwtAudience: ${cloud_run_url}
+      pathTranslation: APPEND_PATH_TO_ADDRESS
+      protocol: http/1.1
+x-google-backend: iot_ingestion_backend
+components:
+  securitySchemes:
+    ug65_api_key:
+      type: apiKey
+      name: x-api-key
+      in: header
+security:
+  - ug65_api_key: []
+paths:
+  /api/v1/iot/measurements:
+    post:
+      operationId: ingestIotMeasurements
+      x-google-quota:
+        iot_measurement_requests: 1
+      responses:
+        "200":
+          description: Measurements accepted

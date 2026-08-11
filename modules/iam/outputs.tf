@@ -13,6 +13,16 @@ output "sa_revit_export_email" {
   value       = google_service_account.revit_export.email
 }
 
+output "sa_iot_ingestion_runtime_email" {
+  description = "Email service account runtime Cloud Run IoT ingestion"
+  value       = google_service_account.iot_ingestion_runtime.email
+}
+
+output "sa_ug65_balocco2_iot_invoker_email" {
+  description = "Email service account OIDC del gateway UG65 Balocco2"
+  value       = google_service_account.ug65_balocco2_iot_invoker.email
+}
+
 output "sa_eventarc_email" {
   description = "Email service account EventArc"
   value       = google_service_account.eventarc.email

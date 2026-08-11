@@ -285,6 +285,16 @@ variable "revit_export_ro_password_rotation_epoch" {
   }
 }
 
+variable "iot_ingestion_image" {
+  description = "Immutable Artifact Registry image digest for iot-ingestion-service. Set only after the application image is built."
+  type        = string
+
+  validation {
+    condition     = can(regex("^.+/iot-ingestion-service@sha256:[a-f0-9]{64}$", var.iot_ingestion_image))
+    error_message = "iot_ingestion_image must be an immutable iot-ingestion-service @sha256 digest reference."
+  }
+}
+
 variable "environment" {
   description = "Ambiente di deployment. Usato nei nomi delle risorse per distinguere prod/staging/dev"
   type        = string

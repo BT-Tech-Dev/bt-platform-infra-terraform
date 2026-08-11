@@ -18,10 +18,10 @@ terraform {
       version = "~> 6.0"
     }
     # Provider "beta" per risorse in anteprima (es. alcune funzionalità EventArc)
-    #google-beta = {
-    #  source  = "hashicorp/google-beta"
-    #  version = "~> 6.0"
-    #}
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "6.50.0"
+    }
     # Provider null: usato per null_resource (azioni locali nel ciclo di vita Terraform)
     # Esempio: invocare Cloud Build dopo la creazione di Cloud SQL
     null = {

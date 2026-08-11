@@ -4,7 +4,6 @@
 *.tfplan
 *-plan.txt
 .terraform/
-.terraform.lock.hcl
 
 # File override locali (usati per debug, non per team)
 override.tf
@@ -37,3 +36,5 @@ revit-export-*.json
 revit-actual-exports/
 tf-state-iam-*.json
 *credential*.json
+
+tfplan*

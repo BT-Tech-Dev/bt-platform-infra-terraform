@@ -10,6 +10,9 @@ output "bucket_handoff_name" {
 output "bucket_exports_name" {
   value = google_storage_bucket.exports.name
 }
+output "bucket_iot_raw_name" {
+  value = google_storage_bucket.iot_raw.name
+}
 output "bucket_staging_url" {
   value = google_storage_bucket.staging.url
 }

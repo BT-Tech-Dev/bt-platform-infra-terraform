@@ -1,0 +1,21 @@
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: apply-iot-db-foundation
+    entrypoint: bash
+    env:
+      - 'PROJECT_ID=${PROJECT_ID}'
+      - 'DB_NAME=${_DB_NAME}'
+      - 'REGION=${_REGION}'
+      - 'INSTANCE=${_INSTANCE}'
+      - 'SECRET_NAME=${_SECRET_NAME}'
+    args:
+      - '/workspace/scripts/apply_iot_db_foundation.sh'
+
+substitutions:
+  _REGION: europe-west8
+  _INSTANCE: bt-platform-pg-prod
+  _DB_NAME: db_bt_platform
+  _SECRET_NAME: bt-platform-db-postgres-password-prod
+
+options:
+  logging: LEGACY
