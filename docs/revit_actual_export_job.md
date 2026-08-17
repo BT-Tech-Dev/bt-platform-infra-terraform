@@ -82,7 +82,13 @@ The export role is intentionally limited to its approved direct column-level
 `SELECT` grants. Those grants are not Terraform-managed. Its query surface is
 `bim.project_element_registry`, `bim.project_element_identifier`,
 `bim.bim_element`, `catalog.element_type`, `progress.evidence_link`,
-`production.production_record`, and `raw.import_file`.
+`process.operational_event`, and `raw.import_file`.
+
+After `migrate_30_moretti_manufactured_unit.sql`, apply
+`scripts/migrations/migrate_31_grant_revit_export_operational_event.sql` as a
+database administrator. It grants `revit_export_ro` schema `USAGE` on
+`process` and column-level `SELECT` only on
+`process.operational_event(operational_event_id, event_date)`.
 
 Verify the live grant inventory and role attributes after creation or rotation:
 
