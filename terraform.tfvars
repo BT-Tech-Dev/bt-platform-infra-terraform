@@ -37,5 +37,5 @@ ocr_max_retries     = 3
 ocr_schema_version  = "ocr-json-contract-v1"
 ocr_auto_profiles   = "ferroberica_steel_ddt_v1"
 
-revit_export_bim_parser_image           = "europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/bim-parser-v1@sha256:55c6792d89fa1354e8e73a8081bf5f852838face0e65e1b1d131074e882be280"
+revit_export_bim_parser_image           = "europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/bim-parser-v1@sha256:bcd8b6e525abba983ee9df3af93d2d9dc145cd540e9c67cda6ba0027c8945215"
 revit_export_ro_password_rotation_epoch = 2
