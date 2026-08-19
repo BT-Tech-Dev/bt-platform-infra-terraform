@@ -495,7 +495,7 @@ resource "google_cloud_run_v2_service" "production_ingestion_service" {
 
     timeout = "300s"
 
-    max_instance_request_concurrency = 20
+    max_instance_request_concurrency = 1
   }
 
   labels = {
