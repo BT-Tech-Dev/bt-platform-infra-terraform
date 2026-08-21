@@ -1,12 +1,16 @@
 # =============================================================================
-# modules/cloud_tasks/main.tf - MS-05 OCR pilot queue
+# modules/cloud_tasks/main.tf - generic single Cloud Tasks queue + enqueuer
+# binding.
 #
-# Cloud Tasks dispatches OCR extraction work from production-ingestion-service
-# to the private OCR worker. Automatic enqueue remains disabled in Cloud Run
-# for the first rollout.
+# Generic on purpose: instantiated twice from root main.tf --
+#   module "cloud_tasks"      -> OCR extraction queue (production-ingestion-service -> OCR worker)
+#   module "cloud_tasks_ms05" -> MS-05 ingest queue (Bucket Watcher -> production-ingestion-service)
+# Internal resource/variable/output names are queue-purpose-agnostic; each
+# call site's variables carry the actual purpose (queue_name, location,
+# enqueuer_service_account_email, ...).
 # =============================================================================
 
-resource "google_cloud_tasks_queue" "ocr_extraction" {
+resource "google_cloud_tasks_queue" "queue" {
   project  = var.project_id
   location = var.location
   name     = var.queue_name
@@ -28,10 +32,25 @@ resource "google_cloud_tasks_queue" "ocr_extraction" {
   }
 }
 
-resource "google_cloud_tasks_queue_iam_member" "ocr_ingest_enqueuer" {
+resource "google_cloud_tasks_queue_iam_member" "enqueuer" {
   project  = var.project_id
-  location = google_cloud_tasks_queue.ocr_extraction.location
-  name     = google_cloud_tasks_queue.ocr_extraction.name
+  location = google_cloud_tasks_queue.queue.location
+  name     = google_cloud_tasks_queue.queue.name
   role     = "roles/cloudtasks.enqueuer"
-  member   = "serviceAccount:${var.ocr_ingest_service_account_email}"
+  member   = "serviceAccount:${var.enqueuer_service_account_email}"
+}
+
+# ─── State preservation: this module was OCR-pilot-only until the MS-05 ────
+# ingest queue reused it. These moved blocks keep the existing OCR queue's
+# state attached to the same real GCP resource under its new generic local
+# name -- no destroy/recreate, no config change, address move only.
+
+moved {
+  from = google_cloud_tasks_queue.ocr_extraction
+  to   = google_cloud_tasks_queue.queue
+}
+
+moved {
+  from = google_cloud_tasks_queue_iam_member.ocr_ingest_enqueuer
+  to   = google_cloud_tasks_queue_iam_member.enqueuer
 }

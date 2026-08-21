@@ -9,4 +9,4 @@ variable "min_retry_backoff_seconds" { type = number }
 variable "max_retry_backoff_seconds" { type = number }
 variable "max_retry_duration_seconds" { type = number }
 variable "logging_sampling_ratio" { type = number }
-variable "ocr_ingest_service_account_email" { type = string }
+variable "enqueuer_service_account_email" { type = string }

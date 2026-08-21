@@ -18,7 +18,7 @@
 
 # =============================================================================
 # Trigger CI/CD: push main → build + deploy bucket-watcher
-# Si attiva solo se ci sono modifiche in services/bucket-watcher/
+# Si attiva se ci sono modifiche nel servizio o nel contratto dispatch condiviso
 # =============================================================================
 
 resource "google_cloudbuild_trigger" "bucket_watcher" {
@@ -26,7 +26,7 @@ resource "google_cloudbuild_trigger" "bucket_watcher" {
   project  = var.project_id
   location = var.region
 
-  description = "Build e deploy automatico di bucket-watcher su push a main (services/bucket-watcher/)"
+  description = "Build e deploy automatico di bucket-watcher su push a main (service or shared dispatch contract)"
 
   github {
     owner = var.github_owner
@@ -39,8 +39,10 @@ resource "google_cloudbuild_trigger" "bucket_watcher" {
 
   filename = "services/bucket-watcher/cloudbuild.yaml"
 
-  included_files = ["services/bucket-watcher/**"]
-
+  included_files = [
+    "services/bucket-watcher/**",
+    "shared/**",
+  ]
   service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
 
   tags = [
@@ -111,7 +113,7 @@ resource "google_cloudbuild_trigger" "production_ingestion_service" {
   project  = var.project_id
   location = var.region
 
-  description = "Build e deploy automatico di production-ingestion-service su push a main (services/production-ingestion-service/)"
+  description = "Build e deploy automatico di production-ingestion-service su push a main (service or shared dispatch contract)"
 
   github {
     owner = var.github_owner
@@ -124,8 +126,10 @@ resource "google_cloudbuild_trigger" "production_ingestion_service" {
 
   filename = "services/production-ingestion-service/cloudbuild.yaml"
 
-  included_files = ["services/production-ingestion-service/**"]
-
+  included_files = [
+    "services/production-ingestion-service/**",
+    "shared/**",
+  ]
   service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
 
   tags = [

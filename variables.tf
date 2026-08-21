@@ -150,6 +150,66 @@ variable "ocr_tasks_logging_sampling_ratio" {
   default     = 1.0
 }
 
+# ─── Cloud Tasks: coda dispatch asincrono MS-05 ingest ───────────────────────
+# Tranche infra-only: Bucket Watcher -> raw.ingestion_dispatch -> Cloud Tasks
+# -> production-ingestion-service. Nessuna applicazione accoda ancora su
+# questa coda; e' sicura da applicare senza toccare il routing Eventarc/
+# Pub/Sub live.
+
+variable "ms05_tasks_location" {
+  description = "Regione Cloud Tasks per la queue MS-05 ingest. europe-west8 non e' supportata da Cloud Tasks; default EU piu' vicino: europe-west6."
+  type        = string
+  default     = "europe-west6"
+}
+
+variable "ms05_tasks_queue_name" {
+  description = "Nome della queue Cloud Tasks per il dispatch asincrono MS-05 ingest."
+  type        = string
+  default     = "bt-platform-ms05-ingest-prod"
+}
+
+variable "ms05_tasks_max_concurrent_dispatches" {
+  description = "Massimo numero di task MS-05 ingest dispatchati in parallelo."
+  type        = number
+  default     = 2
+}
+
+variable "ms05_tasks_max_dispatches_per_second" {
+  description = "Rate massimo dispatch MS-05 ingest."
+  type        = number
+  default     = 1
+}
+
+variable "ms05_tasks_max_attempts" {
+  description = "Numero massimo di tentativi Cloud Tasks per task MS-05 ingest."
+  type        = number
+  default     = 5
+}
+
+variable "ms05_tasks_min_retry_backoff_seconds" {
+  description = "Backoff minimo Cloud Tasks MS-05 ingest, in secondi."
+  type        = number
+  default     = 10
+}
+
+variable "ms05_tasks_max_retry_backoff_seconds" {
+  description = "Backoff massimo Cloud Tasks MS-05 ingest, in secondi."
+  type        = number
+  default     = 300
+}
+
+variable "ms05_tasks_max_retry_duration_seconds" {
+  description = "Durata massima retry Cloud Tasks MS-05 ingest, in secondi."
+  type        = number
+  default     = 3600
+}
+
+variable "ms05_tasks_logging_sampling_ratio" {
+  description = "Sampling ratio dei log Cloud Tasks MS-05 ingest."
+  type        = number
+  default     = 1.0
+}
+
 variable "ocr_worker_timeout_seconds" {
   description = "Timeout request Cloud Run OCR worker, in secondi."
   type        = number

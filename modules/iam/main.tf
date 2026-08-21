@@ -247,6 +247,36 @@ resource "google_service_account_iam_member" "parser_ocr_tasks_oidc_sa_user" {
   member             = "serviceAccount:${google_service_account.parser.email}"
 }
 
+# ─── Service Account: MS-05 ingest Cloud Tasks OIDC caller ──────────────────
+# Identita' usata solo come OIDC token subject per invocare
+# production-ingestion-service dalla coda Cloud Tasks bt-platform-ms05-ingest.
+# Nessun ruolo Cloud SQL/GCS/Pub/Sub: e' solo un'identita' di invocazione,
+# non un runtime. Nessuna applicazione la usa ancora in questa tranche.
+
+resource "google_service_account" "ms05_tasks_oidc" {
+  account_id   = "sa-bt-ms05-tasks-${var.environment}"
+  display_name = "BT MS-05 Ingest Cloud Tasks OIDC"
+  description  = "OIDC caller identity for Cloud Tasks -> production-ingestion-service (MS-05 ingest)"
+  project      = var.project_id
+}
+
+# Il Cloud Tasks service agent deve poter minare token OIDC per questa SA,
+# esattamente come per sa-bt-ocr-tasks-${var.environment}.
+resource "google_service_account_iam_member" "cloud_tasks_ms05_oidc_token_creator" {
+  service_account_id = google_service_account.ms05_tasks_oidc.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${local.cloud_tasks_service_agent}"
+}
+
+# Bucket Watcher continua a girare come sa_parser_email in questa tranche
+# (non viene creato un runtime dedicato): deve poter "actAs" la SA OIDC
+# MS-05 quando accoda un task, cosi' come parser gia' fa per l'OIDC OCR.
+resource "google_service_account_iam_member" "parser_ms05_tasks_oidc_sa_user" {
+  service_account_id = google_service_account.ms05_tasks_oidc.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.parser.email}"
+}
+
 # ─── Compute Engine default SA: permessi Cloud Build ─────────────────────────
 # Dal 2024, Cloud Build usa il Compute Engine default SA per eseguire i job.
 # Senza questi ruoli, "gcloud builds submit" fallisce con errore 403 storage.
