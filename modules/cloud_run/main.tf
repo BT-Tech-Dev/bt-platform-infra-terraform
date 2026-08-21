@@ -531,6 +531,17 @@ resource "google_cloud_run_v2_service_iam_member" "bim_parser_invoker_production
   member   = "serviceAccount:${var.sa_parser_email}"
 }
 
+# MS-05 async ingest queue's OIDC caller. Additive: the old Eventarc/parser
+# invoker bindings above are untouched, so the live production path keeps
+# working unchanged during soak/cutover.
+resource "google_cloud_run_v2_service_iam_member" "ms05_tasks_invoker_production_ingestion" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.production_ingestion_service.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_ms05_tasks_oidc_email}"
+}
+
 # Internet-reachable only for authenticated callers. No public principal is
 # bound; the dedicated UG65 identity below is the sole invoker.
 resource "google_cloud_run_v2_service" "iot_ingestion_service" {

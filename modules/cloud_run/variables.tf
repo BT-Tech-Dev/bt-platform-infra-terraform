@@ -4,6 +4,7 @@ variable "environment" { type = string }
 variable "sa_parser_email" { type = string }
 variable "sa_ocr_worker_email" { type = string }
 variable "sa_ocr_tasks_oidc_email" { type = string }
+variable "sa_ms05_tasks_oidc_email" { type = string }
 variable "sa_iot_ingestion_runtime_email" { type = string }
 variable "sa_ug65_balocco2_iot_invoker_email" { type = string }
 variable "bucket_staging_name" { type = string }

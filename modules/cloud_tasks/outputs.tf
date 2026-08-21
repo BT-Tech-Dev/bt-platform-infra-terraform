@@ -1,14 +1,14 @@
-output "ocr_extraction_queue_name" {
-  description = "Nome della queue Cloud Tasks OCR."
-  value       = google_cloud_tasks_queue.ocr_extraction.name
+output "queue_name" {
+  description = "Nome della queue Cloud Tasks."
+  value       = google_cloud_tasks_queue.queue.name
 }
 
-output "ocr_extraction_queue_id" {
-  description = "ID completo della queue Cloud Tasks OCR."
-  value       = google_cloud_tasks_queue.ocr_extraction.id
+output "queue_id" {
+  description = "ID completo della queue Cloud Tasks."
+  value       = google_cloud_tasks_queue.queue.id
 }
 
-output "ocr_extraction_queue_location" {
-  description = "Location della queue Cloud Tasks OCR."
-  value       = google_cloud_tasks_queue.ocr_extraction.location
+output "queue_location" {
+  description = "Location della queue Cloud Tasks."
+  value       = google_cloud_tasks_queue.queue.location
 }

@@ -204,18 +204,51 @@ module "cloud_tasks" {
   environment = var.environment
   location    = var.ocr_tasks_location
 
-  queue_name                       = var.ocr_tasks_queue_name
-  max_concurrent_dispatches        = var.ocr_tasks_max_concurrent_dispatches
-  max_dispatches_per_second        = var.ocr_tasks_max_dispatches_per_second
-  max_attempts                     = var.ocr_tasks_max_attempts
-  min_retry_backoff_seconds        = var.ocr_tasks_min_retry_backoff_seconds
-  max_retry_backoff_seconds        = var.ocr_tasks_max_retry_backoff_seconds
-  max_retry_duration_seconds       = var.ocr_tasks_max_retry_duration_seconds
-  logging_sampling_ratio           = var.ocr_tasks_logging_sampling_ratio
-  ocr_ingest_service_account_email = module.iam.sa_parser_email
+  queue_name                     = var.ocr_tasks_queue_name
+  max_concurrent_dispatches      = var.ocr_tasks_max_concurrent_dispatches
+  max_dispatches_per_second      = var.ocr_tasks_max_dispatches_per_second
+  max_attempts                   = var.ocr_tasks_max_attempts
+  min_retry_backoff_seconds      = var.ocr_tasks_min_retry_backoff_seconds
+  max_retry_backoff_seconds      = var.ocr_tasks_max_retry_backoff_seconds
+  max_retry_duration_seconds     = var.ocr_tasks_max_retry_duration_seconds
+  logging_sampling_ratio         = var.ocr_tasks_logging_sampling_ratio
+  enqueuer_service_account_email = module.iam.sa_parser_email
 
   depends_on = [
     google_project_service.ocr_apis,
+    module.iam,
+  ]
+}
+
+# Cloud Tasks queue for MS-05 asynchronous ingest dispatch (infra tranche 2
+# of Bucket Watcher -> raw.ingestion_dispatch -> Cloud Tasks -> MS-05). No
+# application enqueues to this queue yet; it is additive and does not touch
+# the live Eventarc/Pub/Sub ingestion path.
+#
+# Reuses the same generic ./modules/cloud_tasks module as the OCR queue
+# above -- the module's internal names are now purpose-agnostic
+# (google_cloud_tasks_queue.queue, var.enqueuer_service_account_email, ...),
+# so this second instantiation configures the MS-05 ingest queue with no
+# awkward OCR-named passthrough.
+module "cloud_tasks_ms05" {
+  source = "./modules/cloud_tasks"
+
+  project_id  = var.project_id
+  environment = var.environment
+  location    = var.ms05_tasks_location
+
+  queue_name                     = var.ms05_tasks_queue_name
+  max_concurrent_dispatches      = var.ms05_tasks_max_concurrent_dispatches
+  max_dispatches_per_second      = var.ms05_tasks_max_dispatches_per_second
+  max_attempts                   = var.ms05_tasks_max_attempts
+  min_retry_backoff_seconds      = var.ms05_tasks_min_retry_backoff_seconds
+  max_retry_backoff_seconds      = var.ms05_tasks_max_retry_backoff_seconds
+  max_retry_duration_seconds     = var.ms05_tasks_max_retry_duration_seconds
+  logging_sampling_ratio         = var.ms05_tasks_logging_sampling_ratio
+  enqueuer_service_account_email = module.iam.sa_parser_email # current Bucket Watcher runtime identity
+
+  depends_on = [
+    google_project_service.ocr_apis, # enables cloudtasks.googleapis.com project-wide
     module.iam,
   ]
 }
@@ -247,6 +280,7 @@ module "cloud_run" {
   sa_parser_email                    = module.iam.sa_parser_email
   sa_ocr_worker_email                = module.iam.sa_ocr_worker_email
   sa_ocr_tasks_oidc_email            = module.iam.sa_ocr_tasks_oidc_email
+  sa_ms05_tasks_oidc_email           = module.iam.sa_ms05_tasks_oidc_email
   sa_iot_ingestion_runtime_email     = module.iam.sa_iot_ingestion_runtime_email
   sa_ug65_balocco2_iot_invoker_email = module.iam.sa_ug65_balocco2_iot_invoker_email
 
@@ -260,8 +294,8 @@ module "cloud_run" {
   sa_eventarc_email = module.iam.sa_eventarc_email
 
   ocr_tasks_project_id                = var.project_id
-  ocr_tasks_location                  = module.cloud_tasks.ocr_extraction_queue_location
-  ocr_tasks_queue                     = module.cloud_tasks.ocr_extraction_queue_name
+  ocr_tasks_location                  = module.cloud_tasks.queue_location
+  ocr_tasks_queue                     = module.cloud_tasks.queue_name
   ocr_tasks_service_account_email     = module.iam.sa_ocr_tasks_oidc_email
   ocr_tasks_dispatch_deadline_seconds = var.ocr_tasks_dispatch_deadline_seconds
   ocr_auto_profiles                   = var.ocr_auto_profiles

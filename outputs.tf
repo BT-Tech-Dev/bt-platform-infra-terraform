@@ -104,12 +104,31 @@ output "production_ingestion_ocr_worker_name" {
 
 output "ocr_extraction_queue_name" {
   description = "Nome della queue Cloud Tasks OCR"
-  value       = module.cloud_tasks.ocr_extraction_queue_name
+  value       = module.cloud_tasks.queue_name
 }
 
 output "ocr_extraction_queue_location" {
   description = "Location della queue Cloud Tasks OCR"
-  value       = module.cloud_tasks.ocr_extraction_queue_location
+  value       = module.cloud_tasks.queue_location
+}
+
+# ─── Cloud Tasks: MS-05 ingest (infra tranche 2) ─────────────────────────────
+# Nessuna applicazione usa ancora questi valori: esposti per la futura
+# tranche applicativa (Bucket Watcher enqueue + MS-05 OIDC verification).
+
+output "ms05_ingest_queue_name" {
+  description = "Nome della queue Cloud Tasks per il dispatch asincrono MS-05 ingest"
+  value       = module.cloud_tasks_ms05.queue_name
+}
+
+output "ms05_ingest_queue_location" {
+  description = "Location della queue Cloud Tasks MS-05 ingest"
+  value       = module.cloud_tasks_ms05.queue_location
+}
+
+output "sa_ms05_tasks_oidc_email" {
+  description = "Email service account OIDC Cloud Tasks -> production-ingestion-service (MS-05 ingest)"
+  value       = module.iam.sa_ms05_tasks_oidc_email
 }
 
 output "iot_ingestion_service_name" {
