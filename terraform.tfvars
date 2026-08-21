@@ -39,3 +39,4 @@ ocr_auto_profiles   = "ferroberica_steel_ddt_v1"
 
 revit_export_bim_parser_image           = "europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/bim-parser-v1@sha256:bcd8b6e525abba983ee9df3af93d2d9dc145cd540e9c67cda6ba0027c8945215"
 revit_export_ro_password_rotation_epoch = 2
+iot_ingestion_image                     = "europe-west8-docker.pkg.dev/bt-platform-prod/bt-platform/iot-ingestion-service@sha256:8869a465df7e2f457545f793da943351dd094841d9b183b63a9087ef621d1b15"
