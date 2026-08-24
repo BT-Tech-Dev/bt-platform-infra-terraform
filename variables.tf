@@ -334,6 +334,16 @@ variable "revit_export_bim_parser_image" {
   }
 }
 
+variable "ms05_recovery_image" {
+  description = "Immutable production-ingestion-service image for the MS-05 recovery Job."
+  type        = string
+
+  validation {
+    condition     = can(regex("^.+@sha256:[a-f0-9]{64}$", var.ms05_recovery_image))
+    error_message = "ms05_recovery_image must use an immutable @sha256 digest reference."
+  }
+}
+
 variable "revit_export_ro_password_rotation_epoch" {
   description = "Change deliberately to rotate the Revit export database password and Secret Manager version together."
   type        = number

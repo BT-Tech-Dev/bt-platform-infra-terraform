@@ -260,6 +260,32 @@ resource "google_service_account" "ms05_tasks_oidc" {
   project      = var.project_id
 }
 
+resource "google_service_account" "ms05_recovery" {
+  account_id   = "sa-bt-ms05-recovery-${var.environment}"
+  display_name = "BT MS-05 Ingestion Recovery"
+  description  = "Cloud Run Job runtime for durable MS-05 dispatch recovery"
+  project      = var.project_id
+}
+
+resource "google_service_account" "ms05_recovery_scheduler" {
+  account_id   = "sa-bt-ms05-rec-sched-${var.environment}"
+  display_name = "BT MS-05 Recovery Scheduler"
+  description  = "Cloud Scheduler caller for the MS-05 recovery Cloud Run Job"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "ms05_recovery_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.ms05_recovery.email}"
+}
+
+resource "google_service_account_iam_member" "ms05_recovery_tasks_oidc_sa_user" {
+  service_account_id = google_service_account.ms05_tasks_oidc.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ms05_recovery.email}"
+}
+
 # Il Cloud Tasks service agent deve poter minare token OIDC per questa SA,
 # esattamente come per sa-bt-ocr-tasks-${var.environment}.
 resource "google_service_account_iam_member" "cloud_tasks_ms05_oidc_token_creator" {

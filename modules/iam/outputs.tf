@@ -48,6 +48,16 @@ output "sa_ms05_tasks_oidc_email" {
   value       = google_service_account.ms05_tasks_oidc.email
 }
 
+output "sa_ms05_recovery_email" {
+  description = "Email Cloud Run Job runtime for MS-05 ingestion recovery"
+  value       = google_service_account.ms05_recovery.email
+}
+
+output "sa_ms05_recovery_scheduler_email" {
+  description = "Email Cloud Scheduler caller for MS-05 ingestion recovery"
+  value       = google_service_account.ms05_recovery_scheduler.email
+}
+
 output "gcs_service_account" {
   description = "Email del SA di sistema GCS (usato per le notifiche Pub/Sub)"
   value       = local.gcs_service_account

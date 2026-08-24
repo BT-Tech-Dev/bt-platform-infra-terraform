@@ -246,6 +246,12 @@ resource "google_storage_bucket_iam_member" "etl_handoff" {
   member = "serviceAccount:${var.sa_etl_email}"
 }
 
+resource "google_storage_bucket_iam_member" "ms05_recovery_staging_viewer" {
+  bucket = google_storage_bucket.staging.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.sa_ms05_recovery_email}"
+}
+
 resource "google_storage_bucket_iam_member" "revit_export_writer" {
   bucket = google_storage_bucket.exports.name
   role   = "roles/storage.objectCreator"

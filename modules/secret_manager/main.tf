@@ -216,6 +216,13 @@ resource "google_secret_manager_secret_iam_member" "etl_db_password_ro" {
   member    = "serviceAccount:${var.sa_etl_email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "ms05_recovery_db_password" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.db_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.sa_ms05_recovery_email}"
+}
+
 resource "google_secret_manager_secret_iam_member" "revit_export_db_password" {
   project   = var.project_id
   secret_id = google_secret_manager_secret.db_password_revit_export_ro.secret_id

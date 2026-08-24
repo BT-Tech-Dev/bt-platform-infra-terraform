@@ -48,6 +48,7 @@ resource "google_project_service" "apis" {
     "secretmanager.googleapis.com",        # Secret Manager (gestione segreti)
     "artifactregistry.googleapis.com",     # Artifact Registry (Docker images)
     "cloudbuild.googleapis.com",           # Cloud Build (CI/CD)
+    "cloudscheduler.googleapis.com",       # Cloud Scheduler (MS-05 recovery Job)
     "iam.googleapis.com",                  # IAM (identity and access management)
     "cloudresourcemanager.googleapis.com", # Resource Manager (gestione progetto)
     "servicenetworking.googleapis.com",    # Service Networking (per peering VPC futuro)
@@ -114,6 +115,7 @@ module "storage" {
   sa_ocr_worker_email            = module.iam.sa_ocr_worker_email
   sa_revit_export_email          = module.iam.sa_revit_export_email
   sa_iot_ingestion_runtime_email = module.iam.sa_iot_ingestion_runtime_email
+  sa_ms05_recovery_email         = module.iam.sa_ms05_recovery_email
   ocr_raw_response_object_prefix = var.ocr_raw_response_object_prefix
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
@@ -163,6 +165,7 @@ module "secret_manager" {
   sa_ocr_worker_email                     = module.iam.sa_ocr_worker_email
   sa_revit_export_email                   = module.iam.sa_revit_export_email
   sa_iot_ingestion_runtime_email          = module.iam.sa_iot_ingestion_runtime_email
+  sa_ms05_recovery_email                  = module.iam.sa_ms05_recovery_email
   revit_export_ro_password                = ephemeral.random_password.revit_export_ro.result
   revit_export_ro_password_rotation_epoch = var.revit_export_ro_password_rotation_epoch
   compute_default_sa                      = module.iam.compute_default_sa
@@ -419,6 +422,74 @@ module "revit_export_job" {
     module.secret_manager,
     module.storage,
   ]
+}
+
+module "ms05_ingestion_recovery_job" {
+  source = "./modules/ms05_ingestion_recovery_job"
+
+  project_id                       = var.project_id
+  region                           = var.region
+  environment                      = var.environment
+  image                            = var.ms05_recovery_image
+  service_account_email            = module.iam.sa_ms05_recovery_email
+  db_connection_name               = module.cloud_sql.connection_name
+  db_name                          = var.db_name
+  db_password_secret_name          = module.secret_manager.secret_db_password_name
+  staging_bucket_name              = module.storage.bucket_staging_name
+  tasks_project_id                 = var.project_id
+  tasks_location                   = module.cloud_tasks_ms05.queue_location
+  tasks_queue                      = module.cloud_tasks_ms05.queue_name
+  tasks_oidc_service_account_email = module.iam.sa_ms05_tasks_oidc_email
+  worker_target_url                = "${module.cloud_run.production_ingestion_service_url}/tasks/ingest"
+  scheduler_service_account_email  = module.iam.sa_ms05_recovery_scheduler_email
+
+  depends_on = [
+    module.cloud_run,
+    module.cloud_sql,
+    module.iam,
+    module.secret_manager,
+    module.storage,
+    module.cloud_tasks_ms05,
+  ]
+}
+
+# Recovery is deliberately paused while legacy Pub/Sub/Eventarc remains the
+# authoritative automatic path. Enable it only in the explicit Cloud Tasks
+# cutover change, after the backend switch and its controlled canary.
+resource "google_cloud_scheduler_job" "ms05_ingestion_recovery" {
+  name        = "ms05-ingestion-recovery-${var.environment}"
+  description = "MS-05 durable Cloud Tasks dispatch recovery (enabled at cutover)"
+  project     = var.project_id
+  region      = var.region
+  schedule    = "*/5 * * * *"
+  time_zone   = "Etc/UTC"
+  paused      = true
+
+  http_target {
+    http_method = "POST"
+    uri         = module.ms05_ingestion_recovery_job.run_uri
+    oauth_token {
+      service_account_email = module.iam.sa_ms05_recovery_scheduler_email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
+  }
+
+  retry_config {
+    retry_count = 0
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    module.ms05_ingestion_recovery_job,
+  ]
+}
+
+resource "google_cloud_tasks_queue_iam_member" "ms05_recovery_enqueuer" {
+  project  = var.project_id
+  location = module.cloud_tasks_ms05.queue_location
+  name     = module.cloud_tasks_ms05.queue_name
+  role     = "roles/cloudtasks.enqueuer"
+  member   = "serviceAccount:${module.iam.sa_ms05_recovery_email}"
 }
 
 # ─── Init DB: schemi SQL via Cloud Build ─────────────────────────────────────
