@@ -20,6 +20,14 @@ variable "ocr_tasks_queue" { type = string }
 variable "ocr_tasks_service_account_email" { type = string }
 variable "ocr_tasks_dispatch_deadline_seconds" { type = number }
 variable "ocr_auto_profiles" { type = string }
+variable "evidence_link_handoff_mode" {
+  type = string
+
+  validation {
+    condition     = contains(["disabled", "required"], var.evidence_link_handoff_mode)
+    error_message = "evidence_link_handoff_mode must be disabled or required."
+  }
+}
 variable "ocr_worker_timeout_seconds" { type = number }
 variable "ocr_worker_max_instance_count" { type = number }
 variable "ocr_worker_concurrency" { type = number }

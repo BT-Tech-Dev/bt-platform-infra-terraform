@@ -276,6 +276,16 @@ variable "ocr_auto_profiles" {
   default     = "ferroberica_steel_ddt_v1"
 }
 
+variable "evidence_link_handoff_mode" {
+  description = "Enforcement mode for correction-safe operational-event evidence-link handoff in MS-05."
+  type        = string
+
+  validation {
+    condition     = contains(["disabled", "required"], var.evidence_link_handoff_mode)
+    error_message = "evidence_link_handoff_mode must be disabled or required."
+  }
+}
+
 variable "initial_tenants" {
   description = <<-EOT
     Lista dei tenant iniziali da inserire nel seed del database.

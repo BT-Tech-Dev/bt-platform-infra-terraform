@@ -302,6 +302,7 @@ module "cloud_run" {
   ocr_tasks_service_account_email     = module.iam.sa_ocr_tasks_oidc_email
   ocr_tasks_dispatch_deadline_seconds = var.ocr_tasks_dispatch_deadline_seconds
   ocr_auto_profiles                   = var.ocr_auto_profiles
+  evidence_link_handoff_mode          = var.evidence_link_handoff_mode
   ocr_worker_timeout_seconds          = var.ocr_worker_timeout_seconds
   ocr_worker_max_instance_count       = var.ocr_worker_max_instance_count
   ocr_worker_concurrency              = var.ocr_worker_concurrency
@@ -474,9 +475,9 @@ resource "google_cloud_scheduler_job" "ms05_ingestion_recovery" {
     }
   }
 
-  retry_config {
-    retry_count = 0
-  }
+  #  retry_config {
+  #    retry_count = 0
+  #  }
 
   depends_on = [
     google_project_service.apis,

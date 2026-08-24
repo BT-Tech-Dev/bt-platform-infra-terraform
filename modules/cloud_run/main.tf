@@ -436,6 +436,10 @@ resource "google_cloud_run_v2_service" "production_ingestion_service" {
         value = "false"
       }
       env {
+        name  = "EVIDENCE_LINK_HANDOFF_MODE"
+        value = var.evidence_link_handoff_mode
+      }
+      env {
         name  = "OCR_INTERNAL_HANDLER_ENABLED"
         value = "false"
       }
