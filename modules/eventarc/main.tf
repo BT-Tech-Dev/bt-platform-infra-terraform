@@ -6,9 +6,9 @@
 #   1. File caricato in GCS staging (uploads/{project_code}/{doc_type}/{file})
 #   2. GCS notifica → topic bt-platform-gcs-staging-uploads-prod
 #   3. EventArc (trg-bt-staging-to-parser-prod) → bucket-watcher POST /route
-#   4. bucket-watcher risolve tenant_id e pubblica su topic per doc_type:
+#   4. bucket-watcher risolve tenant_id e instrada per doc_type:
 #        bim        → bt-platform-gcs-bim-prod
-#        production → bt-platform-gcs-production-prod
+#        production → Cloud Tasks MS-05
 #        boq        → bt-platform-gcs-boq-prod
 #        gantt      → bt-platform-gcs-gantt-prod
 #   5. EventArc (trg-bt-gcs-bim-to-parser-prod) → bim-parser-v1 POST /ingest
@@ -83,42 +83,6 @@ resource "google_eventarc_trigger" "gcs_bim_to_bim_parser" {
   labels = {
     environment = var.environment
     pipeline    = "bim-ingest"
-    step        = "2-parse"
-  }
-}
-
-# â”€â”€â”€ Trigger 3: topic production â†’ production-ingestion-service â”€â”€â”€â”€â”€â”€â”€â”€
-# Ascolta il topic bt-platform-gcs-production-{env} pubblicato da bucket-watcher
-# e invoca MS-05 production-ingestion-service POST /ingest.
-resource "google_eventarc_trigger" "gcs_production_to_production_ingestion" {
-  name     = "trg-bt-gcs-production-to-ms05-${var.environment}"
-  location = var.region
-  project  = var.project_id
-
-  matching_criteria {
-    attribute = "type"
-    value     = "google.cloud.pubsub.topic.v1.messagePublished"
-  }
-
-  transport {
-    pubsub {
-      topic = var.topic_gcs_production_id
-    }
-  }
-
-  destination {
-    cloud_run_service {
-      service = var.cloud_run_production_ingestion_service_name
-      region  = var.region
-      path    = "/ingest"
-    }
-  }
-
-  service_account = var.sa_eventarc_email
-
-  labels = {
-    environment = var.environment
-    pipeline    = "production-ingest"
     step        = "2-parse"
   }
 }

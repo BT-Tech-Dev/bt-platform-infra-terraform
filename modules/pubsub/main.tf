@@ -130,19 +130,6 @@ resource "google_pubsub_topic" "gcs_bim" {
   message_retention_duration = "604800s"
 }
 
-resource "google_pubsub_topic" "gcs_production" {
-  name    = "${local.topic_prefix}-gcs-production-${var.environment}"
-  project = var.project_id
-
-  labels = {
-    environment = var.environment
-    pipeline    = "production-ingest"
-    doc_type    = "production"
-  }
-
-  message_retention_duration = "604800s"
-}
-
 resource "google_pubsub_topic" "gcs_boq" {
   name    = "${local.topic_prefix}-gcs-boq-${var.environment}"
   project = var.project_id

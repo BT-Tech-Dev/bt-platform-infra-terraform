@@ -120,8 +120,6 @@ module "storage" {
 
   # Topic su cui GCS pubblica le notifiche di upload (notifica e binding IAM gestiti qui)
   topic_staging_uploads_id = module.pubsub.topic_staging_uploads_id
-
-  depends_on = [module.pubsub]
 }
 
 # ─── Modulo Cloud SQL ────────────────────────────────────────────────────────
@@ -588,10 +586,6 @@ module "eventarc" {
   # Trigger 2: topic BIM → bim-parser-v1
   cloud_run_bim_parser_name = module.cloud_run.bim_parser_name
   topic_gcs_bim_id          = module.pubsub.topic_gcs_bim_id
-
-  # Trigger 3: topic production -> production-ingestion-service (MS-05)
-  cloud_run_production_ingestion_service_name = module.cloud_run.production_ingestion_service_name
-  topic_gcs_production_id                     = module.pubsub.topic_gcs_production_id
 
   depends_on = [
     module.storage,

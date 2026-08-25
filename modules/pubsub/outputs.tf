@@ -25,9 +25,6 @@ output "topic_gcs_bim_id" {
   description = "ID topic bt-platform-gcs-bim-{env} (alimentato da bucket-watcher per file BIM)"
   value       = google_pubsub_topic.gcs_bim.id
 }
-output "topic_gcs_production_id" {
-  value = google_pubsub_topic.gcs_production.id
-}
 output "topic_gcs_boq_id" {
   value = google_pubsub_topic.gcs_boq.id
 }
@@ -47,7 +44,6 @@ output "topic_ids" {
     nc_events       = google_pubsub_topic.nc_events.id
     dead_letter     = google_pubsub_topic.dead_letter.id
     gcs_bim         = google_pubsub_topic.gcs_bim.id
-    gcs_production  = google_pubsub_topic.gcs_production.id
     gcs_boq         = google_pubsub_topic.gcs_boq.id
     gcs_gantt       = google_pubsub_topic.gcs_gantt.id
   }

@@ -224,10 +224,10 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker" {
 # in base al doc_type nel percorso: uploads/{project_code}/{doc_type}/{file}.
 #
 # Pubblica su:
-#   bt-platform-gcs-bim-prod       → bim-parser-v1
-#   bt-platform-gcs-production-prod → production-parser (futuro)
-#   bt-platform-gcs-boq-prod        → boq-parser (futuro)
-#   bt-platform-gcs-gantt-prod      → gantt-parser (futuro)
+#   bt-platform-gcs-bim-prod → bim-parser-v1
+#   production               → Cloud Tasks MS-05
+#   bt-platform-gcs-boq-prod → boq-parser (futuro)
+#   bt-platform-gcs-gantt-prod → gantt-parser (futuro)
 #
 # NOTA IAM: il SA sa_parser_email deve avere roles/pubsub.publisher
 # oltre ai ruoli già assegnati (Cloud SQL client, secret accessor).
@@ -373,9 +373,8 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_bucket_watch
 # =============================================================================
 # Cloud Run: production-ingestion-service (MS-05)
 #
-# Riceve eventi production dal topic bt-platform-gcs-production-{env} via
-# Eventarc e registra l'audit raw su schema raw. Il container reale verra'
-# sostituito da Cloud Build/deploy applicativo.
+# Riceve comandi Cloud Tasks su /tasks/ingest e registra l'audit raw su schema
+# raw. Il container reale verra' sostituito da Cloud Build/deploy applicativo.
 # =============================================================================
 
 resource "google_cloud_run_v2_service" "production_ingestion_service" {
@@ -543,14 +542,6 @@ resource "google_cloud_run_v2_service" "production_ingestion_service" {
   }
 }
 
-resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_production_ingestion" {
-  project  = var.project_id
-  location = var.region
-  name     = google_cloud_run_v2_service.production_ingestion_service.name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${var.sa_eventarc_email}"
-}
-
 resource "google_cloud_run_v2_service_iam_member" "bim_parser_invoker_production_ingestion" {
   project  = var.project_id
   location = var.region
@@ -559,9 +550,7 @@ resource "google_cloud_run_v2_service_iam_member" "bim_parser_invoker_production
   member   = "serviceAccount:${var.sa_parser_email}"
 }
 
-# MS-05 async ingest queue's OIDC caller. Additive: the old Eventarc/parser
-# invoker bindings above are untouched, so the live production path keeps
-# working unchanged during soak/cutover.
+# MS-05 async ingest queue's OIDC caller.
 resource "google_cloud_run_v2_service_iam_member" "ms05_tasks_invoker_production_ingestion" {
   project  = var.project_id
   location = var.region
