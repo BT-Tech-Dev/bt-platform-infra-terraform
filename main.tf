@@ -296,6 +296,13 @@ module "cloud_run" {
 
   sa_eventarc_email = module.iam.sa_eventarc_email
 
+  production_dispatch_backend          = var.bucket_watcher_production_dispatch_backend
+  ms05_tasks_location                  = var.ms05_tasks_location
+  ms05_tasks_queue                     = var.ms05_tasks_queue_name
+  ms05_tasks_service_account_email     = module.iam.sa_ms05_tasks_oidc_email
+  ms05_worker_target_url               = var.ms05_worker_target_url
+  ms05_tasks_dispatch_deadline_seconds = var.ms05_tasks_dispatch_deadline_seconds
+
   ocr_tasks_project_id                = var.project_id
   ocr_tasks_location                  = module.cloud_tasks.queue_location
   ocr_tasks_queue                     = module.cloud_tasks.queue_name

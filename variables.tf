@@ -210,6 +210,38 @@ variable "ms05_tasks_logging_sampling_ratio" {
   default     = 1.0
 }
 
+variable "ms05_tasks_dispatch_deadline_seconds" {
+  description = "Dispatch deadline Cloud Tasks per l'ingest MS-05. Deve essere tra 1 e 1800 secondi."
+  type        = number
+  default     = 360
+
+  validation {
+    condition     = var.ms05_tasks_dispatch_deadline_seconds >= 1 && var.ms05_tasks_dispatch_deadline_seconds <= 1800
+    error_message = "ms05_tasks_dispatch_deadline_seconds deve essere tra 1 e 1800."
+  }
+}
+
+variable "ms05_worker_target_url" {
+  description = "URL HTTPS del worker Cloud Run MS-05 /tasks/ingest per Cloud Tasks."
+  type        = string
+
+  validation {
+    condition     = startswith(var.ms05_worker_target_url, "https://")
+    error_message = "ms05_worker_target_url deve usare HTTPS."
+  }
+}
+
+variable "bucket_watcher_production_dispatch_backend" {
+  description = "Backend di dispatch production del Bucket Watcher: pubsub per rollback, cloud_tasks per il cutover MS-05."
+  type        = string
+  default     = "pubsub"
+
+  validation {
+    condition     = contains(["pubsub", "cloud_tasks"], var.bucket_watcher_production_dispatch_backend)
+    error_message = "bucket_watcher_production_dispatch_backend deve essere pubsub o cloud_tasks."
+  }
+}
+
 variable "ocr_worker_timeout_seconds" {
   description = "Timeout request Cloud Run OCR worker, in secondi."
   type        = number

@@ -26,11 +26,14 @@ ocr_tasks_max_dispatches_per_second = 0.05
 ocr_tasks_max_attempts              = 3
 ocr_tasks_dispatch_deadline_seconds = 900
 
-ms05_tasks_location                  = "europe-west6"
-ms05_tasks_queue_name                = "bt-platform-ms05-ingest-prod"
-ms05_tasks_max_concurrent_dispatches = 2
-ms05_tasks_max_dispatches_per_second = 1
-ms05_tasks_max_attempts              = 5
+ms05_tasks_location                        = "europe-west6"
+ms05_tasks_queue_name                      = "bt-platform-ms05-ingest-prod"
+ms05_tasks_max_concurrent_dispatches       = 2
+ms05_tasks_max_dispatches_per_second       = 1
+ms05_tasks_max_attempts                    = 5
+ms05_tasks_dispatch_deadline_seconds       = 360
+ms05_worker_target_url                     = "https://production-ingestion-service-qspj7kbdla-oc.a.run.app/tasks/ingest"
+bucket_watcher_production_dispatch_backend = "cloud_tasks"
 
 ocr_worker_timeout_seconds    = 900
 ocr_worker_max_instance_count = 1

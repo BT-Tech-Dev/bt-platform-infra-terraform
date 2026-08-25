@@ -289,6 +289,30 @@ resource "google_cloud_run_v2_service" "bucket_watcher" {
         name  = "LOG_LEVEL"
         value = "INFO"
       }
+      env {
+        name  = "PRODUCTION_DISPATCH_BACKEND"
+        value = var.production_dispatch_backend
+      }
+      env {
+        name  = "MS05_TASKS_SERVICE_ACCOUNT_EMAIL"
+        value = var.ms05_tasks_service_account_email
+      }
+      env {
+        name  = "MS05_WORKER_TARGET_URL"
+        value = var.ms05_worker_target_url
+      }
+      env {
+        name  = "MS05_TASKS_LOCATION"
+        value = var.ms05_tasks_location
+      }
+      env {
+        name  = "MS05_TASKS_QUEUE"
+        value = var.ms05_tasks_queue
+      }
+      env {
+        name  = "MS05_TASKS_DISPATCH_DEADLINE_SECONDS"
+        value = tostring(var.ms05_tasks_dispatch_deadline_seconds)
+      }
 
       env {
         name = "DB_PASSWORD"
