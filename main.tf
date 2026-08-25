@@ -461,9 +461,8 @@ module "ms05_ingestion_recovery_job" {
   ]
 }
 
-# Recovery is deliberately paused while legacy Pub/Sub/Eventarc remains the
-# authoritative automatic path. Enable it only in the explicit Cloud Tasks
-# cutover change, after the backend switch and its controlled canary.
+# Recovery remains available alongside the legacy Pub/Sub/Eventarc rollback
+# path and runs after the Cloud Tasks cutover canary has passed.
 resource "google_cloud_scheduler_job" "ms05_ingestion_recovery" {
   name        = "ms05-ingestion-recovery-${var.environment}"
   description = "MS-05 durable Cloud Tasks dispatch recovery (enabled at cutover)"
@@ -471,7 +470,7 @@ resource "google_cloud_scheduler_job" "ms05_ingestion_recovery" {
   region      = var.region
   schedule    = "*/5 * * * *"
   time_zone   = "Etc/UTC"
-  paused      = true
+  paused      = false
 
   http_target {
     http_method = "POST"
