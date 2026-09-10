@@ -587,6 +587,10 @@ module "eventarc" {
   cloud_run_bim_parser_name = module.cloud_run.bim_parser_name
   topic_gcs_bim_id          = module.pubsub.topic_gcs_bim_id
 
+  # Trigger 3: topic BOQ → boq-parser-v1
+  cloud_run_boq_parser_name = module.cloud_run.boq_parser_name
+  topic_gcs_boq_id          = module.pubsub.topic_gcs_boq_id
+
   depends_on = [
     module.storage,
     module.pubsub,

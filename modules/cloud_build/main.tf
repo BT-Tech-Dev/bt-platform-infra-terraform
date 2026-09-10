@@ -105,6 +105,40 @@ resource "google_cloudbuild_trigger" "bim_parser" {
 }
 
 # =============================================================================
+# Trigger CI/CD: push main → build + deploy boq-parser-v1
+# Mirror esatto del trigger bim-parser sopra.
+# =============================================================================
+
+resource "google_cloudbuild_trigger" "boq_parser" {
+  name     = "cb-boq-parser-v1-${var.environment}"
+  project  = var.project_id
+  location = var.region
+
+  description = "Build e deploy automatico di boq-parser-v1 su push a main (services/boq-parser-v1/)"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repo_name
+
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "services/boq-parser-v1/cloudbuild.yaml"
+
+  included_files = ["services/boq-parser-v1/**"]
+
+  service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
+
+  tags = [
+    "boq-parser",
+    "cloud-run",
+    var.environment,
+  ]
+}
+
+# =============================================================================
 # Trigger CI/CD: push main -> build + deploy production-ingestion-service
 # =============================================================================
 
