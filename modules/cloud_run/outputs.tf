@@ -18,6 +18,16 @@ output "boq_parser_name" {
   value       = google_cloud_run_v2_service.boq_parser.name
 }
 
+output "contract_ingestor_url" {
+  description = "URL HTTPS del servizio Cloud Run contract-ingestor-v1"
+  value       = google_cloud_run_v2_service.contract_ingestor.uri
+}
+
+output "contract_ingestor_name" {
+  description = "Nome del servizio Cloud Run contract-ingestor-v1 (usato da EventArc per il routing)"
+  value       = google_cloud_run_v2_service.contract_ingestor.name
+}
+
 output "bucket_watcher_url" {
   description = "URL HTTPS del servizio Cloud Run bucket-watcher"
   value       = google_cloud_run_v2_service.bucket_watcher.uri

@@ -21,6 +21,11 @@ variable "cloud_run_boq_parser_name" {
   type        = string
 }
 
+variable "cloud_run_contract_ingestor_name" {
+  description = "Nome del Cloud Run contract-ingestor-v1 (destinazione trigger Pub/Sub Contracts)"
+  type        = string
+}
+
 # ─── Topic Pub/Sub sorgente per i trigger doc_type ────────────────────────────
 variable "topic_gcs_bim_id" {
   description = "ID del topic bt-platform-gcs-bim-{env} (pubblicato da bucket-watcher)"
@@ -29,5 +34,10 @@ variable "topic_gcs_bim_id" {
 
 variable "topic_gcs_boq_id" {
   description = "ID del topic bt-platform-gcs-boq-{env} (pubblicato da bucket-watcher)"
+  type        = string
+}
+
+variable "topic_gcs_contracts_id" {
+  description = "ID del topic bt-platform-gcs-contracts-{env} (pubblicato da bucket-watcher)"
   type        = string
 }

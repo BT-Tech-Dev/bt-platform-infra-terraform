@@ -139,6 +139,40 @@ resource "google_cloudbuild_trigger" "boq_parser" {
 }
 
 # =============================================================================
+# Trigger CI/CD: push main → build + deploy contract-ingestor-v1
+# Mirror esatto del trigger boq-parser sopra.
+# =============================================================================
+
+resource "google_cloudbuild_trigger" "contract_ingestor" {
+  name     = "cb-contract-ingestor-v1-${var.environment}"
+  project  = var.project_id
+  location = var.region
+
+  description = "Build e deploy automatico di contract-ingestor-v1 su push a main (services/contract-ingestor-v1/)"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repo_name
+
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "services/contract-ingestor-v1/cloudbuild.yaml"
+
+  included_files = ["services/contract-ingestor-v1/**"]
+
+  service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
+
+  tags = [
+    "contract-ingestor",
+    "cloud-run",
+    var.environment,
+  ]
+}
+
+# =============================================================================
 # Trigger CI/CD: push main -> build + deploy production-ingestion-service
 # =============================================================================
 
