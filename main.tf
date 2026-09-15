@@ -595,6 +595,10 @@ module "eventarc" {
   cloud_run_contract_ingestor_name = module.cloud_run.contract_ingestor_name
   topic_gcs_contracts_id           = module.pubsub.topic_gcs_contracts_id
 
+  # Trigger 5: topic Gantt → gantt-parser-v1
+  cloud_run_gantt_parser_name = module.cloud_run.gantt_parser_name
+  topic_gcs_gantt_id          = module.pubsub.topic_gcs_gantt_id
+
   depends_on = [
     module.storage,
     module.pubsub,

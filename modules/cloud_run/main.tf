@@ -499,6 +499,150 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_contract_ing
   member   = "serviceAccount:${var.sa_eventarc_email}"
 }
 
+# =============================================================================
+# Cloud Run: gantt-parser-v1
+#
+# Mirror di boq_parser/contract_ingestor sopra: stesso SA, stesso volume
+# Cloud SQL, stesso secret DB_PASSWORD. Differenze:
+#   - DB_SCHEMA = "process" (come contract_ingestor: scrive
+#     process.gantt_import/gantt_activity, e aggiorna soltanto
+#     process.milestone)
+#   - nessun TENANT_ID fisso: arriva già nel payload pubblicato da
+#     bucket-watcher
+#
+# Questo Cloud Run è il consumer del topic bt-platform-gcs-gantt-{env}, già
+# creato in modules/pubsub e già instradato da bucket-watcher (doc_type
+# "gantt" già presente, nessuna modifica a bucket-watcher):
+#   EventArc → POST /ingest → gantt-parser-v1 →
+#   process.gantt_import/gantt_activity (+ UPDATE su process.milestone)
+# =============================================================================
+
+resource "google_cloud_run_v2_service" "gantt_parser" {
+  name     = "gantt-parser-v1"
+  location = var.region
+  project  = var.project_id
+
+  deletion_protection = false
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  template {
+    service_account = var.sa_parser_email
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.db_connection_name]
+      }
+    }
+
+    containers {
+      # Immagine placeholder di Google — verrà sostituita da Cloud Build
+      # al primo deploy del codice applicativo
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "2Gi"
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "STAGING_BUCKET"
+        value = var.bucket_staging_name
+      }
+      env {
+        name  = "INGEST_BUCKET"
+        value = var.bucket_ingest_name
+      }
+      env {
+        name  = "MAX_SIZE_MB"
+        value = "50"
+      }
+      env {
+        name  = "LOG_LEVEL"
+        value = "INFO"
+      }
+
+      # ─── Configurazione database ─────────────────────────────────────
+      env {
+        name  = "INSTANCE_CONNECTION_NAME"
+        value = var.db_connection_name
+      }
+      env {
+        name  = "DB_USER"
+        value = "bt_app"
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
+      env {
+        name  = "DB_SCHEMA"
+        value = "process"
+      }
+
+      # ─── Segreti da Secret Manager ───────────────────────────────────
+      # Stesso secret di bim-parser-v1/boq-parser-v1/contract-ingestor-v1:
+      # nessun nuovo secret da creare.
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "bt-platform-db-password-${var.environment}"
+            version = "latest"
+          }
+        }
+      }
+
+      # ─── Mount Cloud SQL socket ──────────────────────────────────────
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+
+      ports {
+        container_port = 8080
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 3
+    }
+
+    timeout = "900s"
+
+    max_instance_request_concurrency = 1
+  }
+
+  labels = {
+    environment = var.environment
+    service     = "gantt-parser"
+    version     = "v1"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      template[0].revision,
+      client,
+      client_version,
+      scaling
+    ]
+  }
+}
+
+# ─── IAM: solo EventArc può invocare gantt-parser-v1 ────────────────────────
+resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_gantt_parser" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.gantt_parser.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.sa_eventarc_email}"
+}
+
 
 # =============================================================================
 # Cloud Run: bucket-watcher
@@ -507,10 +651,11 @@ resource "google_cloud_run_v2_service_iam_member" "eventarc_invoker_contract_ing
 # in base al doc_type nel percorso: uploads/{project_code}/{doc_type}/{file}.
 #
 # Pubblica su:
-#   bt-platform-gcs-bim-prod → bim-parser-v1
-#   production               → Cloud Tasks MS-05
-#   bt-platform-gcs-boq-prod → boq-parser (futuro)
-#   bt-platform-gcs-gantt-prod → gantt-parser (futuro)
+#   bt-platform-gcs-bim-prod    → bim-parser-v1
+#   production                  → Cloud Tasks MS-05
+#   bt-platform-gcs-boq-prod    → boq-parser-v1
+#   bt-platform-gcs-contracts-prod → contract-ingestor-v1
+#   bt-platform-gcs-gantt-prod  → gantt-parser-v1
 #
 # NOTA IAM: il SA sa_parser_email deve avere roles/pubsub.publisher
 # oltre ai ruoli già assegnati (Cloud SQL client, secret accessor).

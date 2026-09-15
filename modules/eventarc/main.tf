@@ -162,3 +162,42 @@ resource "google_eventarc_trigger" "gcs_contracts_to_contract_ingestor" {
     step        = "2-parse"
   }
 }
+
+# ─── Trigger 5: topic Gantt → gantt-parser-v1 ────────────────────────────────
+# Mirror di gcs_boq_to_boq_parser: ascolta il topic bt-platform-gcs-gantt-{env}
+# (già esposto da modules/pubsub, nessuna modifica a quel modulo -- a
+# differenza dei contratti, il topic e il routing bucket-watcher esistevano
+# già prima di questo servizio) e invoca gantt-parser-v1 POST /ingest. Il
+# payload contiene {bucket, file_path, project_code, tenant_id, doc_type}.
+resource "google_eventarc_trigger" "gcs_gantt_to_gantt_parser" {
+  name     = "trg-bt-gcs-gantt-to-parser-${var.environment}"
+  location = var.region
+  project  = var.project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.pubsub.topic.v1.messagePublished"
+  }
+
+  transport {
+    pubsub {
+      topic = var.topic_gcs_gantt_id
+    }
+  }
+
+  destination {
+    cloud_run_service {
+      service = var.cloud_run_gantt_parser_name
+      region  = var.region
+      path    = "/ingest"
+    }
+  }
+
+  service_account = var.sa_eventarc_email
+
+  labels = {
+    environment = var.environment
+    pipeline    = "gantt-ingest"
+    step        = "2-parse"
+  }
+}

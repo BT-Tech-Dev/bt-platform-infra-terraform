@@ -173,6 +173,40 @@ resource "google_cloudbuild_trigger" "contract_ingestor" {
 }
 
 # =============================================================================
+# Trigger CI/CD: push main → build + deploy gantt-parser-v1
+# Mirror esatto del trigger contract-ingestor sopra.
+# =============================================================================
+
+resource "google_cloudbuild_trigger" "gantt_parser" {
+  name     = "cb-gantt-parser-v1-${var.environment}"
+  project  = var.project_id
+  location = var.region
+
+  description = "Build e deploy automatico di gantt-parser-v1 su push a main (services/gantt-parser-v1/)"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repo_name
+
+    push {
+      branch = "^main$"
+    }
+  }
+
+  filename = "services/gantt-parser-v1/cloudbuild.yaml"
+
+  included_files = ["services/gantt-parser-v1/**"]
+
+  service_account = "projects/${var.project_id}/serviceAccounts/${var.sa_cloudbuild_email}"
+
+  tags = [
+    "gantt-parser",
+    "cloud-run",
+    var.environment,
+  ]
+}
+
+# =============================================================================
 # Trigger CI/CD: push main -> build + deploy production-ingestion-service
 # =============================================================================
 
