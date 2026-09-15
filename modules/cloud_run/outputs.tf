@@ -28,6 +28,16 @@ output "contract_ingestor_name" {
   value       = google_cloud_run_v2_service.contract_ingestor.name
 }
 
+output "gantt_parser_url" {
+  description = "URL HTTPS del servizio Cloud Run gantt-parser-v1"
+  value       = google_cloud_run_v2_service.gantt_parser.uri
+}
+
+output "gantt_parser_name" {
+  description = "Nome del servizio Cloud Run gantt-parser-v1 (usato da EventArc per il routing)"
+  value       = google_cloud_run_v2_service.gantt_parser.name
+}
+
 output "bucket_watcher_url" {
   description = "URL HTTPS del servizio Cloud Run bucket-watcher"
   value       = google_cloud_run_v2_service.bucket_watcher.uri
