@@ -156,6 +156,19 @@ resource "google_pubsub_topic" "gcs_gantt" {
   message_retention_duration = "604800s"
 }
 
+resource "google_pubsub_topic" "gcs_contracts" {
+  name    = "${local.topic_prefix}-gcs-contracts-${var.environment}"
+  project = var.project_id
+
+  labels = {
+    environment = var.environment
+    pipeline    = "contract-ingest"
+    doc_type    = "contracts"
+  }
+
+  message_retention_duration = "604800s"
+}
+
 # ─── Dead Letter Topic ────────────────────────────────────────────────────────
 # Topic speciale per i messaggi che falliscono dopo N tentativi.
 # Importante per il debug: invece di perdere i messaggi, finiscono qui.

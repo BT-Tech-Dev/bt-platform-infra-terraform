@@ -31,6 +31,9 @@ output "topic_gcs_boq_id" {
 output "topic_gcs_gantt_id" {
   value = google_pubsub_topic.gcs_gantt.id
 }
+output "topic_gcs_contracts_id" {
+  value = google_pubsub_topic.gcs_contracts.id
+}
 
 # Mappa nome → ID per output aggregato nel root module
 output "topic_ids" {
@@ -46,5 +49,6 @@ output "topic_ids" {
     gcs_bim         = google_pubsub_topic.gcs_bim.id
     gcs_boq         = google_pubsub_topic.gcs_boq.id
     gcs_gantt       = google_pubsub_topic.gcs_gantt.id
+    gcs_contracts   = google_pubsub_topic.gcs_contracts.id
   }
 }
